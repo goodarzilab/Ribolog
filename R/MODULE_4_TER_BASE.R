@@ -1,3 +1,29 @@
+#' @import data.table
+#' @import ggfortify
+#' @import Biostrings
+#' @import devtools
+#' @import riboWaltz
+#' @import ggplot2
+#' @import ggrepel
+#' @import dplyr
+#' @import plyr
+#' @import cowplot
+#' @import robustbase
+#' @import qvalue
+#' @import nortest
+#' @import fitdistrplus
+#' @import matrixStats
+#' @import sm
+#' @import epiR
+#' @import corrplot
+#' @import mvmeta
+#' @import DescTools
+#' @import GenomicAlignments
+#' @import corrplot
+#' @import rlist
+
+
+
 #' @title logit_seq
 #' @description Function to perform the logistic regression test for differential translational efficiency
 #' @param x Input data frame where each column contains RNA or RPF counts from a single sample.
@@ -5,7 +31,6 @@
 #' @param design Design matrix of the experiment describing samples and their attributes.
 #' i-th row in the design matrix corresponds to the i-th column in the input data frame.
 #' @param model Regression equation modeling the odds ratio of RPF/RNA counts against the selected design variables (sample attributes)
-#' @param n Number of estimated parameters (including intercept)
 #' @param feature.list (Optional) A vector containing IDs of genes/transcripts.
 #' Must have the same length as the row number of input data frame.
 #' @return A matrix containing the output of the regression.
@@ -17,32 +42,35 @@
 #' The change in translational efficiency between samples or based on unit values of any predictor
 #' (design variable) is given by the exponentiated regression coefficient.
 #' Exponentiated intercept gives the TE for the sample with all the attributes at the reference level.
+#' If the predcitor variable is categorical, its levels are sorted alphabetically, the first level is set to reference
+#' and all other levels are compared to it. The reference level can be manually changed using the \code{\link{relevel()}} function of R.
 #' @examples
-#' fit.1 <- logit_seq(rna.rpf.combined.m5[,-1], sample.attributes, read.type ~ lung.metastasis, 2, as.vector(rna.rpf.combined.m5$transcript))
-#' The n=2 parameters include the intercept and the effect of lung.metastasis.
-#' fit.2 <- logit_seq(rna.rpf.combined.m5[,-1], sample.attributes, read.type ~ lung.metastasis*cell.line.origin, 4, as.vector(rna.rpf.combined.m5$transcript))
-#' The n=4 parameters include the intercept, the main effects of lung.metastasis and cell.line.origin and their interaction.
+#' Test the effect of lung metastasis on translational efficiency:
+#' fit1_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis, as.vector(rr_LMCN.v2$transcript))
+#' Test the effects of lung metastasis and cell line origin on translational efficiency:
+#' fit2_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis + cell_line_origin, as.vector(rna.rpf.combined.m5$transcript))
+#' Test the effects of lung metastasis, cell line origin and their interaction on translational efficiency:
+#' fit3_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis * cell_line_origin, as.vector(rna.rpf.combined.m5$transcript))
+#' Test the effect of cell line on translational efficiency (cell line "CN34" is used as reference because it comes first alphabetically):
+#' fit4_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ cell_line, as.vector(rr_LMCN.v2$transcript))
+#' Test the effect of cell line on translational efficiency with cell line "MDA" set as reference:
+#' sample_attributes_LMCN$cell_line <- relevel(sample_attributes_LMCN$cell_line, ref = "MDA")
+#' fit5_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ cell_line, as.vector(rr_LMCN.v2$transcript))
 #' @export
-logit_seq <- function(x, design, model, n, feature.list=NULL){
+logit_seq <- function(x, design, model, feature.list=NULL){
   logit_seq_gene <- function(m){
     prep <- data.frame(design,m)
-    fit <- glm(model, data=prep, family="binomial"(link="logit"), weights = m)
-    sfit <<- summary(fit)
+    fit <- suppressWarnings(glm(model, data=prep, family="binomial"(link="logit"), weights = m))
+    sfit <- summary(fit)
     return(c(t(sfit$coefficients)))
   }
-  logit_seq_gene_try <- function(m){
-    out<-tryCatch(
-      {
-        result_logistic <- logit_seq_gene(m)
-      },
-      error = function(cond){
-        return(rep(NA, times=4*n))
-      }
-    )
-    return(out)
-  }
-  logit.x <- t(apply(x, 1, logit_seq_gene_try))
-  colnames(logit.x) <- apply(expand.grid(colnames(sfit$coefficients), rownames(sfit$coefficients)), 1, paste, collapse=".")
+  logit.x <- t(apply(x, 1, logit_seq_gene))
+
+  prep1 <- cbind.data.frame(design, data.frame(counts1 = as.numeric(x[1,])))
+  fit1 <- suppressWarnings(glm(model, data=prep1, family="binomial"(link="logit"), weights = counts1))
+  sfit1 <- summary(fit1)
+
+  colnames(logit.x) <- apply(expand.grid(colnames(sfit1$coefficients), rownames(sfit1$coefficients)), 1, paste, collapse=".")
   rownames(logit.x) <- feature.list
   return(logit.x)
 }

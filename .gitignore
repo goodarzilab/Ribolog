@@ -35,3 +35,9 @@ vignettes/*.pdf
 # Shiny token, see https://shiny.rstudio.com/articles/shinyapps.html
 rsconnect/
 .Rproj.user
+inst/doc
+
+# Data-raw files
+/data-raw/*.*
+/data-raw/Bam/RNA/*.*
+/data-raw/Bam/RPF/*.*

@@ -18,11 +18,11 @@ A data frame where the specified columns from the input are row-standardized and
 the rest is intact.
 }
 \description{
-Function to standardize a selected block of a dataframe row-wise
+Function to standardize a selected block of a data frame row-wise.
 }
 \details{
 Row mean is subtracted from each element in the row and the result is divided by row standard deviation.
 }
 \examples{
-te.m5.standardized <- row_standardize(te.m5, c(2:9))
+te_LMCN.v2.stnd <- row_standardize(te_LMCN.v2, columns = c(2:9))
 }

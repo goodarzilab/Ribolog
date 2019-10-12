@@ -14,21 +14,22 @@ The data frame may contain additional columns for gene/transcript ID or other me
 \item{data.columns}{A vector of numbers specifying the columns to be normalized together.}
 }
 \value{
-An augmented data frame with all the original columns retained and normalized columns
-appended at the end. New columns are named 'norm.<old_column>'.
+A data frame the same size as the input data frame where non-normalized counts in the 'data.columns'
+are replaced in situ by normalized counts. Column names are not changed.
 }
 \description{
 Function to normalize a RNA-seq or ribo-seq dataset for library size variation
 }
 \details{
-The original data columns are retained and normalized columns are added.
-Compare to the method 'normalize_median_of_ratios2'.
+The original columns of non-normalized counts are replaced in situ with normalized counts.
+Compare with \code{\link{normalize_median_of_ratios_append}}.
 
-Use the 'data.columns' argument to exclude gene/transcript ID and other metadata columns from the
-calculations or to normalize RNA and RPF counts separately while keeping them in the same data frame.
+Use the \code{data.columns} argument to exclude gene or transcript ID and other metadata columns from the
+calculations, and, to normalize RNA and RPF counts separately while keeping them in the same data frame.
 }
 \examples{
-rna.observed.normalized <- normalize_median_of_ratios(rna.observed, c(2:9))
-rpf.observed.normalized <- normalize_median_of_ratios(rpf.observed, c(2:9))
-## The first column of each data frame (transcript ID) is excluded from normalization.
+The data set rna_CELP_rpf_count_LMCN contains 17 columns: [1] transcript [2:9] RNA counts [10:17] RPF counts.
+RNA and RPF counts are normalized separately.
+rna_CELP_rpf_count_norm1_LMCN <- Ribolog::normalize_median_of_ratios(rna_CELP_rpf_count_LMCN, c(2:9))
+rna_CELP_rpf_count_norm2_LMCN <- Ribolog::normalize_median_of_ratios(rna_CELP_rpf_count_norm1_LMCN, c(10:17))
 }

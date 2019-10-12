@@ -18,10 +18,8 @@ A data frame where the specified columns from the input are row-centered and
 the rest is intact.
 }
 \description{
-Function to center a selected block of a dataframe on its row means
+Function to center a selected block of a data frame on its row means.
 }
 \examples{
-rna.rpf.combined.m5.centered <- row_center(rna.rpf.combined.m5, c(2:9))
-rna.rpf.combined.m5.centered2 <- row_center(rna.rpf.combined.m5.centered, c(10:17))
-## RNA data (columns 2:9) and RPF data (columns 10:17) are centered separately.
+te_LMCN.v2.cent <- row_center(te_LMCN.v2, columns = c(2:9))
 }

@@ -4,7 +4,7 @@
 \alias{pca_qc}
 \title{pca_qc}
 \usage{
-pca_qc(x, n, plotsfile)
+pca_qc(x, n, outfile = NULL, ID = NULL)
 }
 \arguments{
 \item{x}{A numeric matrix containing RNA, RPF, TE or some other type of data.
@@ -14,15 +14,19 @@ respectively (but not as additional non-numeric columns or rows).}
 
 \item{n}{The number of principal components to be plotted}
 
-\item{plotsfile}{The path and name of the output pdf file containing the PCA plots.}
+\item{outfile}{The path and name of the output pdf file containing the PCA plots (optional). Default: NULL.}
+
+\item{ID}{A vector containing group IDs to color-code the samples on the PCA plot
+(must correspond to the order of samples in \code{x}) (optional). Default: NULL.}
 }
 \description{
-Function to produce PCA output for data visualization and QC purposes
+Function to produce PCA output for data visualization and QC purposes.
 }
 \details{
-A summary of the PC analysis is printed out to standard output in addition to creating the plots file.
+A summary of the PC analysis is printed out to standard output.
+If outfile is not specified, PCA plots will be printed to standard output i.e. the plots panel in Rstudio.
 }
 \examples{
-pca_qc(te.m5.standardized[,-1], 4, "<file.path>/PCA.QC.te.standardized.pdf")
-## The first column of input data (transcript ID) had to be removed to create a full-numeric input dataset.
+pca_qc(te_LMCN.v2.stnd[,-1], n = 4)
+The first column of input data (transcript ID) had to be removed to create a full-numeric input dataset.
 }

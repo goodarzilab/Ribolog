@@ -4,34 +4,35 @@
 \alias{min_count_filter}
 \title{min_count_filter}
 \usage{
-min_count_filter(x, min.count, columns, method = "all")
+min_count_filter(x, mincount, columns, method = "all")
 }
 \arguments{
 \item{x}{Input data frame containing RNA-seq or Ribo-seq data.
 Rows are genes/transcripts and columns are samples.
 The data.frame may contain additional columns for gene/transcript ID or other metadata.}
 
-\item{min.count}{A single number (float), minimum RNA or RPF count required for a gene/transcript to be retained.}
+\item{mincount}{A single number (float), minimum RNA or RPF count required for a gene/transcript to be retained.}
 
 \item{columns}{A vector specifying the columns to be considered for minimum count filtering.}
 
-\item{method}{The method of filtering. Options: "all", "average". Default: "all".}
+\item{method}{The method of filtering. Options: \code{"all", "average"}. Default: \code{"all"}.}
 }
 \value{
-Filtered data.frame containing all the original columns but only the rows (genes)
+Filtered data frame containing all the original columns but only the rows (genes)
 that pass the filtering criterion.
 }
 \description{
 Function to filter out genes with counts below a minimum in one or more samples.
 }
 \details{
-If method="all" is chosen, a gene passes the filtering only if all samples specified
-by the "columns" argument have values >= "min.count". If method="average" is chosen, a gene
-passes the filtering if the average count among the specified "columns" is >= "min.count".
+If \code{method="all"} is chosen, a gene passes the filtering only if all samples specified
+by the \code{columns} argument have values \code{>= mincount}. If \code{method="average"} is chosen, a gene
+passes the filtering if the average count among the specified \code{columns} is \code{>= mincount}.
 
-Use the columns argument to exclude gene/transcript ID and other metadata columns from the
+Use the \code{columns} argument to exclude gene/transcript ID and other metadata columns from the
 calculations or to filter RNA and RPF counts separately while keeping them in the same data.frame.
 }
 \examples{
-rna.rpf.combined.m5 <- min_count_filter(rna.rpf.combined, 5, c(2:9))
+rr_LMCN.v1 <- min_count_filter(rr_LMCN, mincount = 5, columns = c(2:9), method = "all")
+rr_LMCN.v2 <- min_count_filter(rr_LMCN.v1, mincount = 2, columns = c(10:17), method = "average")
 }

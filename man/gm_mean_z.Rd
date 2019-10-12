@@ -17,5 +17,5 @@ Function to calculate geometric mean of a vector of non-negative numbers
 }
 \details{
 Zeros will remain in the calculation and render the geometric mean zero.
-Compare to function: gm_means.
+Compare with \code{\link{gm_mean}}.
 }

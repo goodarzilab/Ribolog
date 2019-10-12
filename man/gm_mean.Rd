@@ -16,7 +16,7 @@ Geometric mean of the vector with the zeros and negative numbers replaced by 1
 Function to calculate geometric mean of positive numbers in a vector
 }
 \details{
-Zeros and negative numbers will be treated as 1:
-They will not contribute to the sum of logs but will be included in calculation of vector length.
-Compare to function: gm_mean_z.
+Zeros and negative numbers will be effectively treated as 1:
+They will not contribute to the product of numbers but will be included in calculation of vector length.
+Compare with \code{\link{gm_mean_z}}.
 }

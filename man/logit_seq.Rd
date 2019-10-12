@@ -4,7 +4,7 @@
 \alias{logit_seq}
 \title{logit_seq}
 \usage{
-logit_seq(x, design, model, n, feature.list = NULL)
+logit_seq(x, design, model, feature.list = NULL)
 }
 \arguments{
 \item{x}{Input data frame where each column contains RNA or RPF counts from a single sample.
@@ -14,8 +14,6 @@ Rows are genes/transcripts.}
 i-th row in the design matrix corresponds to the i-th column in the input data frame.}
 
 \item{model}{Regression equation modeling the odds ratio of RPF/RNA counts against the selected design variables (sample attributes)}
-
-\item{n}{Number of estimated parameters (including intercept)}
 
 \item{feature.list}{(Optional) A vector containing IDs of genes/transcripts.
 Must have the same length as the row number of input data frame.}
@@ -35,10 +33,19 @@ Translational efficiency of each sample if formulated as the odds of RPF vs. RNA
 The change in translational efficiency between samples or based on unit values of any predictor
 (design variable) is given by the exponentiated regression coefficient.
 Exponentiated intercept gives the TE for the sample with all the attributes at the reference level.
+If the predcitor variable is categorical, its levels are sorted alphabetically, the first level is set to reference
+and all other levels are compared to it. The reference level can be manually changed using the \code{\link{relevel()}} function of R.
 }
 \examples{
-fit.1 <- logit_seq(rna.rpf.combined.m5[,-1], sample.attributes, read.type ~ lung.metastasis, 2, as.vector(rna.rpf.combined.m5$transcript))
-The n=2 parameters include the intercept and the effect of lung.metastasis.
-fit.2 <- logit_seq(rna.rpf.combined.m5[,-1], sample.attributes, read.type ~ lung.metastasis*cell.line.origin, 4, as.vector(rna.rpf.combined.m5$transcript))
-The n=4 parameters include the intercept, the main effects of lung.metastasis and cell.line.origin and their interaction.
+Test the effect of lung metastasis on translational efficiency:
+fit1_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis, as.vector(rr_LMCN.v2$transcript))
+Test the effects of lung metastasis and cell line origin on translational efficiency:
+fit2_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis + cell_line_origin, as.vector(rna.rpf.combined.m5$transcript))
+Test the effects of lung metastasis, cell line origin and their interaction on translational efficiency:
+fit3_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis * cell_line_origin, as.vector(rna.rpf.combined.m5$transcript))
+Test the effect of cell line on translational efficiency (cell line "CN34" is used as reference because it comes first alphabetically):
+fit4_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ cell_line, as.vector(rr_LMCN.v2$transcript))
+Test the effect of cell line on translational efficiency with cell line "MDA" set as reference:
+sample_attributes_LMCN$cell_line <- relevel(sample_attributes_LMCN$cell_line, ref = "MDA")
+fit5_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ cell_line, as.vector(rr_LMCN.v2$transcript))
 }
