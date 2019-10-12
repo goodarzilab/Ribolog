@@ -1,20 +1,20 @@
 # Ribolog
 A suite of regression-based tools for Ribosome profiling data analysis
 
-Module 1: CELP (Consistent Excess of Loess Preds) identifies positions of translational pause (stalling) 
+"Module 1: CELP (Consistent Excess of Loess Preds)" identifies positions of translational pause (stalling) 
 and corrects RPF counts to eliminate the impact of stalling bias. The output of CELP can be used to model the
 factors that influence translational dynamics. 
 
-Module 2: PREP normalizes 
+"Module 2: PREP" normalizes 
 and combines RNA and RPF datasets and shapes them into a format ready for quality control (QC) and translational
 efficiency ratio (TER) anlaysis. 
 
-Module 3: QC includes three powerful tools to quantify and visualize 
+"Module 3: QC" includes three powerful tools to quantify and visualize 
 reproducibility among replicates and inform hypothesis generation with respect to biological effects: 
 princiapl component analysis (PCA) of TEs, proportion of null features (not-differentially translated transcripts)
 and correlation of equivalent TER tests. 
 
-Module 4: TER tests the size and significance of differential translation
+"Module 4: TER" tests the size and significance of differential translation
 rates among biological samples. Although better results are always obtained with sufficient replicates, Ribolog is able 
 to peform the TER test with only one replicate per sample. The TER test is not restricted to pairwise comparisons;
 any number of samples described by several indenpedent variables can be compared in a single model. 
