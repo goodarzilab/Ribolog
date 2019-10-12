@@ -1,13 +1,26 @@
 # Ribolog
-A suite of regression-based tools for RNA-seq and Ribo-seq data analysis
+A suite of regression-based tools for Ribosome profiling data analysis
 
-The core function of this package is a test for tranlational efficiency ratio (TER) based on 
-ribosome profiling data (module 4: TER_BASE). Module 1: CELP identifies positions of translational 
-pause (stalling) and corrects RPF counts to eliminate the stalling bias. Module 2: PREP normalizes 
-and combines RNA and RPF datasets and shapes them into a format ready for QC and anlaysis. Module 3:
-QC_PCA performs princiapl component analysis on RNA, RPF and TE (translational efficiency) to visualize
-reproducibility among replicates and help with hypothesis generation with respect to biological effects.
-Modules 5 and 6 are intended for more advanced users. Module 5: TER_ALT provides alternative options 
-for the TER test including empirical significance testing and meta-analysis. Module 6: MODEL_SEL 
-provides tools for model selection and feature selection to identify factors that influence 
-translation rates of individual genes.
+Module 1: CELP (Consistent Excess of Loess Preds) identifies positions of translational pause (stalling) 
+and corrects RPF counts to eliminate the impact of stalling bias. The output of CELP can be used to model the
+factors that influence translational dynamics. 
+
+Module 2: PREP normalizes 
+and combines RNA and RPF datasets and shapes them into a format ready for quality control (QC) and translational
+efficiency ratio (TER) anlaysis. 
+
+Module 3: QC includes three powerful tools to quantify and visualize 
+reproducibility among replicates and inform hypothesis generation with respect to biological effects: 
+princiapl component analysis (PCA) of TEs, proportion of null features (not-differentially translated transcripts)
+and correlation of equivalent TER tests. 
+
+Module 4: TER tests the size and significance of differential translation
+rates among biological samples. Although better results are always obtained with sufficient replicates, Ribolog is able 
+to peform the TER test with only one replicate per sample. The TER test is not restricted to pairwise comparisons;
+any number of samples described by several indenpedent variables can be compared in a single model. 
+
+The Ribolog workflow is described in great detail in the package vignettes. 
+
+Ribolog is still a work in progress. Four other modules are being prepared and will be released in near future.
+Feel free to contact us about issues with current functions and modules or if you you have special requests or
+ideas about additional analyses you would like to do with ribosome profiling data. 
