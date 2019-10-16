@@ -19,7 +19,7 @@ and correlation of equivalent TER tests.
 Tests the size and significance of differential translation
 rates among biological samples. Although better results are always obtained with sufficient replicates, Ribolog is able to peform the TER test with only one replicate per sample. The TER test is not restricted to pairwise comparisons; any number of samples described by several indenpedent variables can be compared in a single model. 
 
-The Ribolog workflow is described in great detail in the package vignettes. 
+The Ribolog workflow is described in great detail in the package vignettes (RIBOLOG.pdf in the vignettes folder). 
 
 Ribolog is still a work in progress. Four other modules are being prepared and will be released in near future.
 Feel free to contact us (using the issues tab on this page) about problems with current functions and modules or if you you have special requests or ideas about additional analyses you would like to do with ribosome profiling data. 
