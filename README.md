@@ -1,4 +1,4 @@
-![Ribolog](https://github.com/Goodarzilab/Ribolog/vignettes/Logo-r.jpg)
+![Logo-r](https://github.com/Goodarzilab/Ribolog/blob/master/vignettes/Logo-r.jpg)
 
 # Ribolog
 A suite of regression-based tools for Ribosome profiling data analysis
