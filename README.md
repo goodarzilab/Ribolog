@@ -23,6 +23,7 @@ The Ribolog workflow is described in great detail in the package vignettes (RIBO
 
 ## Installing <span style="color:orange"> **Ribolog** </span>
 Run the following command in R:
+
 `install_github("Goodarzilab/Ribolog", dependencies = TRUE, build_vignettes = FALSE, build_manual = FALSE)`
 
 Rendering the vignettes during installation requires bam files that are not uploaded onto this repository. The knitted .pdf file should be downloaded directly from the vignettes folder instead.
