@@ -21,7 +21,7 @@ rates among biological samples. Although better results are always obtained with
 
 The Ribolog workflow is described in great detail in the package vignettes (RIBOLOG.pdf in the vignettes folder). 
 
-## Installing Ribolog
+## Installing <span style="color:orange"> **Ribolog** </span>
 Run the following command in R:
 `install_github("Goodarzilab/Ribolog", dependencies = TRUE, build_vignettes = FALSE, build_manual = FALSE)`
 
