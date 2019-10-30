@@ -21,5 +21,11 @@ rates among biological samples. Although better results are always obtained with
 
 The Ribolog workflow is described in great detail in the package vignettes (RIBOLOG.pdf in the vignettes folder). 
 
+## Installing Ribolog
+Run the following command in R:
+`install_github("Goodarzilab/Ribolog", dependencies = TRUE, build_vignettes = FALSE, build_manual = FALSE)`
+
+Rendering the vignettes during installation requires bam files that are not uploaded onto this repository. The knitted .pdf file should be downloaded directly from the vignettes folder instead.
+
 Ribolog is still a work in progress. Four other modules are being prepared and will be released in near future.
 Feel free to contact us (using the issues tab on this page) about problems with current functions and modules or if you you have special requests or ideas about additional analyses you would like to do with ribosome profiling data. 
