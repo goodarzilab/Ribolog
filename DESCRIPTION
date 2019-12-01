@@ -48,7 +48,8 @@ Imports:
     mvmeta,
     DescTools,
     GenomicAlignments,
-    seqinr
+    seqinr,
+    rlist
 Suggests: 
     knitr,
     rmarkdown
