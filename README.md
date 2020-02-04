@@ -33,4 +33,4 @@ Rendering the vignettes during installation requires bam files that are not uplo
 Ribolog is still a work in progress. Four other modules are being prepared and will be released in near future.
 Feel free to contact us (using the issues tab on this page) about problems with current functions and modules or if you you have special requests or ideas about additional analyses you would like to do with ribosome profiling data. 
 
-Ribolog was developed at by Hossein Asgharian at UCSF supervised by Hani Goodarzi and Adam Olshen.
+Ribolog was developed by Hossein Asgharian at UCSF supervised by Hani Goodarzi and Adam Olshen.
