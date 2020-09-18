@@ -19,9 +19,16 @@ and correlation of equivalent TER tests.
 
 ## Module 4: TER 
 Tests the size and significance of differential translation
-rates among biological samples. Although better results are always obtained with sufficient replicates, Ribolog is able to peform the TER test with only one replicate per sample. The TER test is not restricted to pairwise comparisons; any number of samples described by several indenpedent variables can be compared in a single model. 
+rates among biological samples. Although better results are always obtained with sufficient replicates, __Ribolog__ is able to peform the TER test with only one replicate per sample. The TER test is not restricted to pairwise comparisons; any number of samples described by a list of attributes (covariates) can be compared in a single model. 
+
+## Module 5: Empirical significance testing and Meta-analysis
+Offers tools for two important slightly advanced statistical tasks: 1) Empirical null hypothesis testing to reduce false positives in replicated datasets. 
+2) Meta-analysis to integrate 
+results of biologically related and statistically correlated experiments.
 
 The Ribolog workflow is described in great detail in the package vignettes (RIBOLOG.pdf in the vignettes folder). 
+
+![Logo-r](https://github.com/Goodarzilab/Ribolog/blob/master/vignettes/Ribolog_workflow.v5.png)
 
 ## Installing Ribolog
 Run the following command in R:
@@ -30,7 +37,9 @@ Run the following command in R:
 
 Rendering the vignettes during installation requires bam files that are not uploaded onto this repository. The knitted .pdf file should be downloaded directly from the vignettes folder instead.
 
-Ribolog is still a work in progress. Four other modules are being prepared and will be released in near future.
-Feel free to contact us (using the issues tab on this page) about problems with current functions and modules or if you you have special requests or ideas about additional analyses you would like to do with ribosome profiling data. 
+__Ribolog__ was developed by Hossein Asgharian at UCSF supervised by Hani Goodarzi and Adam Olshen. More modules are being prepared and will be released in near future.
 
-Ribolog was developed by Hossein Asgharian at UCSF supervised by Hani Goodarzi and Adam Olshen.
+For questions and comments, email us at:  
+hosseinali.asgharian@ucsf.edu  
+hani.goodarzi@ucsf.edu
+
