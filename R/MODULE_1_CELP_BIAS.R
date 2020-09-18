@@ -21,6 +21,11 @@
 #' @import GenomicAlignments
 #' @import corrplot
 #' @import rlist
+<<<<<<< HEAD
+#' @import gdata
+#' @import nlme
+=======
+>>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 
 
 
@@ -1488,6 +1493,14 @@ CELP_detect_bias <- function(tr_codon_read_count_list, loess_method = "interpola
 #' The "direct" fitting method takes longer to complete but does not run into kd-tree-related memory issues.
 #' Gini index for each transcript is calculated from the bias coefficients of all of its codons.
 #' Gini moderation ensures that the strength of bias correction is proportional to the original level of heterogenity in read distribution along the transcript.
+<<<<<<< HEAD
+#' @return A list composed of two lists: 1. bias coefficients 2. bias-corrected read counts
+#' The bias coefficient list has the following structure: list$<transcript.ID> data.frame: [1] codon_number [2] codon_type [3] aa_type [4] bias_coefficient.
+#' The bias-corrected read count list has the following structure: list$<sample.name>$<transcript.ID> data.frame:
+#' [1] codon_number [2] codon_type [3] aa_type [4] observed_count [5] bias_coefficient [6] corrected_count.
+#' Gini moderation ensures that the strength of correction is proportional to the original level of heterogenity in read distribution along the transcript.
+=======
+>>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 #' @return A list composed of two lists: 1. bias coefficients 2. bias-corrected read counts
 #' The bias coefficient list has the following structure: list$<transcript.ID> data.frame: [1] codon_number [2] codon_type [3] aa_type [4] bias_coefficient.
 #' The bias-corrected read count list has the following structure: list$<sample.name>$<transcript.ID> data.frame:
@@ -1507,6 +1520,10 @@ CELP_bias <- function(tr_codon_read_count_list, codon_raduis = 5, loess_method =
   # Run loess and compute loess predicted values
   for (t in tr_names_i){
     l_cds <- dim(tr_codon_read_count_loess_corrected[[1]][[t]])[1]
+<<<<<<< HEAD
+    #l_cds <- length(tr_codon_read_count_loess_corrected[[1]][[t]]$codon_number)
+=======
+>>>>>>> 3ae8418... Modules updates, functions added, vignettes written
     span_tr <- (2*codon_raduis+1)/l_cds
     for (s in sample_names_i){
       tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred <-
@@ -1520,6 +1537,17 @@ CELP_bias <- function(tr_codon_read_count_list, codon_raduis = 5, loess_method =
     bias_coefficients_list[[t]] <- data.frame(codon_number = tr_codon_read_count_loess_corrected[[1]][[t]]$codon_number,
                                               codon_type = tr_codon_read_count_loess_corrected[[1]][[t]]$codon_type,
                                               aa_type = tr_codon_read_count_loess_corrected[[1]][[t]]$aa_type)
+<<<<<<< HEAD
+    for (s in sample_names_i){
+      bias_coefficients_list[[t]] <- data.frame(bias_coefficients_list[[t]], tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred_by_nz_median)
+    }
+    names(bias_coefficients_list[[t]]) <- c("codon_number", "codon_type", "aa_type", sample_names_i)
+    bias_coefficient <- apply(bias_coefficients_list[[t]][,-c(1:3)], 1, function(y) gm_mean(y))
+    bias_coefficient_gini <- DescTools::Gini(bias_coefficient)
+    bias_coefficients_list[[t]] <- data.frame(bias_coefficients_list[[t]][,c(1:3)], bias_coefficient)
+    bias_coefficients_list[[t]] <- data.frame(codon_number=tr_codon_read_count_loess_corrected[[1]][[t]]$codon_number)
+=======
+>>>>>>> 3ae8418... Modules updates, functions added, vignettes written
     for (s in sample_names_i){
       bias_coefficients_list[[t]] <- data.frame(bias_coefficients_list[[t]], tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred_by_nz_median)
     }
@@ -1541,6 +1569,11 @@ CELP_bias <- function(tr_codon_read_count_list, codon_raduis = 5, loess_method =
       tr_codon_read_count_loess_corrected[[s]][[t]] <- subset(tr_codon_read_count_loess_corrected[[s]][[t]], select = -c(loess_pred, loess_pred_by_nz_median))
     }
   }
+<<<<<<< HEAD
+
+  output <- list (bias_coefficients_list=bias_coefficients_list, tr_codon_read_count_loess_corrected=tr_codon_read_count_loess_corrected)
+=======
+>>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 
   output <- list (bias_coefficients_list = bias_coefficients_list, tr_codon_read_count_loess_corrected = tr_codon_read_count_loess_corrected)
   return(output)
@@ -1561,6 +1594,10 @@ CELP_bias <- function(tr_codon_read_count_list, codon_raduis = 5, loess_method =
 #' @examples
 #' rpf_observed_sum_LMCN <- codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "observed_count")
 #' rpf_corrected_sum_LMCN <- codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "corrected_count")
+<<<<<<< HEAD
+#' rpf_corrected_sum_LMCN <- codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "corrected_loess")
+=======
+>>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 #' @return A data frame where the first column is transcript IDs and the remaining columns contain per transcript read counts for all samples.
 #' @export
 codon2transcript <- function(tr_codon_read_count_loess_corrected_list, count.type){
@@ -1590,6 +1627,10 @@ plot_mirrors_CELP <- function(x, ylim_low_i, ylim_up_i, xlim_low_i = NULL, xlim_
        ylim = c(ylim_low_i, ylim_up_i), xlim = c(xlim_low_i, xlim_up_i))
   lines(x$bias_coefficient, col = "red")
   lines((-1)*(x$corrected_count), col = "darkorchid1", type = "h")
+<<<<<<< HEAD
+  lines((-1)*(x$corrected_loess), col = "darkorchid1", type = "h")
+=======
+>>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 }
 
 

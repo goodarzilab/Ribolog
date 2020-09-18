@@ -21,6 +21,11 @@
 #' @import GenomicAlignments
 #' @import corrplot
 #' @import rlist
+<<<<<<< HEAD
+#' @import gdata
+#' @import nlme
+=======
+>>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 
 
 
