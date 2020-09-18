@@ -4,7 +4,7 @@
 \alias{codon2transcript}
 \title{codon2transcript}
 \usage{
-codon2transcript(tr_codon_read_count_loess_corrected_list, count.type)
+codon2transcript(tr_codon_read_count_loess_corrected_list, count_type)
 }
 \arguments{
 \item{tr_codon_read_count_loess_corrected_list}{A list of codon level read counts for all samples and transcripts.
@@ -13,7 +13,7 @@ It has the following structure:
 list$<sample.name>$<transcript.ID> data.frame:
 [1] codon_number [2] codon_type [3] aa_type [4] observed_count [5] bias_coefficient [6] corrected_count.}
 
-\item{count.type}{Options: "observed_count", "corrected_count".}
+\item{count_type}{Options: "observed_count", "corrected_count".}
 }
 \value{
 A data frame where the first column is transcript IDs and the remaining columns contain per transcript read counts for all samples.
@@ -28,8 +28,4 @@ is ususally performed at transcript level. This function sums up codon level cou
 \examples{
 rpf_observed_sum_LMCN <- codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "observed_count")
 rpf_corrected_sum_LMCN <- codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "corrected_count")
-<<<<<<< HEAD
-rpf_corrected_sum_LMCN <- codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "corrected_loess")
-=======
->>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 }

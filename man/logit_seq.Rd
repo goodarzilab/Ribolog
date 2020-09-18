@@ -4,11 +4,7 @@
 \alias{logit_seq}
 \title{logit_seq}
 \usage{
-<<<<<<< HEAD
 logit_seq(x, design, model, feature_list = NULL, long_output = FALSE)
-=======
-logit_seq(x, design, model, feature.list = NULL)
->>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 }
 \arguments{
 \item{x}{Input data frame where each column contains RNA or RPF counts from a single sample.
@@ -19,11 +15,7 @@ i-th row in the design matrix corresponds to the i-th column in the input data f
 
 \item{model}{Regression equation modeling the odds ratio of RPF/RNA counts against the selected design variables (sample attributes)}
 
-<<<<<<< HEAD
 \item{feature_list}{(Optional) A vector containing IDs of genes/transcripts.
-=======
-\item{feature.list}{(Optional) A vector containing IDs of genes/transcripts.
->>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 Must have the same length as the row number of input data frame.}
 }
 \value{

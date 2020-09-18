@@ -5,8 +5,14 @@
 \title{pairs2pi0s}
 \usage{
 pairs2pi0s(x, outfile = NULL)
+
+pairs2pi0s(x, outfile = NULL)
 }
 \arguments{
+\item{x}{A list of the results of TER tests between all pairs of samples in a data set produced by \code{\link{TER_all_pairs}}.}
+
+\item{outfile}{The path and name of the output pdf file. Default: NULL.}
+
 \item{x}{A list of the results of TER tests between all pairs of samples in a data set produced by \code{\link{TER_all_pairs}}.}
 
 \item{outfile}{The path and name of the output pdf file. Default: NULL.}
@@ -14,14 +20,23 @@ pairs2pi0s(x, outfile = NULL)
 \value{
 A data frame describing uniqueIDs and groupIDs of pairs of compared samples, the \code{pair_type ("Homo" or "Hetero")}
 and the estimated \emph{pi0} (proportion of null features aka not differentially translated transcripts).
+
+A data frame describing uniqueIDs and groupIDs of pairs of compared samples, the \code{pair_type ("Homo" or "Hetero")}
+and the estimated \emph{pi0} (proportion of null features aka not differentially translated transcripts).
 }
 \description{
+Function to estimate and plot the proportion of null features from pairwise TER tests.
+
 Function to estimate and plot the proportion of null features from pairwise TER tests.
 }
 \details{
 A histogram of \emph{pi0}s is created colored by pair type. If \code{outfile} is given, the histogram will be saved to the pdf file, too.
 \code{"Homo"} pairs are expected to have a higher proportion of null features than \code{"Hetero"} pairs.
+
+A histogram of \emph{pi0}s is created colored by pair type. If \code{outfile} is given, the histogram will be saved to the pdf file, too.
+\code{"Homo"} pairs are expected to have a higher proportion of null features than \code{"Hetero"} pairs.
 }
 \examples{
+pi0df_LMCN <- pairs2pi0s(rr_LMCN.v2.pairwise)
 pi0df_LMCN <- pairs2pi0s(rr_LMCN.v2.pairwise)
 }

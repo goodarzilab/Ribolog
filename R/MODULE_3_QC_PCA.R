@@ -21,11 +21,8 @@
 #' @import GenomicAlignments
 #' @import corrplot
 #' @import rlist
-<<<<<<< HEAD
 #' @import gdata
 #' @import nlme
-=======
->>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 
 
 
@@ -303,8 +300,6 @@ generate_correlogram <- function(x){
 }
 
 
-<<<<<<< HEAD
-=======
 #' @title partition_to_uniques
 #' @description Function to convert a RNA+RPF data frame to a sample-by-sample list.
 #' @param x A data frame or matrix containing RNA+RPF count data where each row is a transcript and each column is RNA or RPF counts of one sample.
@@ -428,7 +423,6 @@ generate_correlogram <- function(x){
 }
 
 
->>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 
 #' @title pairs2correlograms
 #' @description Function to calculate and plot correlograms from equivalent pairwise TER tests.

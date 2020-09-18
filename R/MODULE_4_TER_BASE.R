@@ -21,11 +21,8 @@
 #' @import GenomicAlignments
 #' @import corrplot
 #' @import rlist
-<<<<<<< HEAD
 #' @import gdata
 #' @import nlme
-=======
->>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 
 
 
@@ -36,11 +33,7 @@
 #' @param design Design matrix of the experiment describing samples and their attributes.
 #' i-th row in the design matrix corresponds to the i-th column in the input data frame.
 #' @param model Regression equation modeling the odds ratio of RPF/RNA counts against the selected design variables (sample attributes)
-<<<<<<< HEAD
 #' @param feature_list (Optional) A vector containing IDs of genes/transcripts.
-=======
-#' @param feature.list (Optional) A vector containing IDs of genes/transcripts.
->>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 #' Must have the same length as the row number of input data frame.
 #' @return A matrix containing the output of the regression. If long output is requested, four
 #' values are reported for each predictor in the regression 'model' including the intercept:
@@ -67,40 +60,25 @@
 #' sample_attributes_LMCN$cell_line <- relevel(sample_attributes_LMCN$cell_line, ref = "MDA")
 #' fit5_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ cell_line, as.vector(rr_LMCN.v2$transcript))
 #' @export
-<<<<<<< HEAD
 
 logit_seq <- function(x, design, model, feature_list=NULL, long_output = FALSE){
-=======
-logit_seq <- function(x, design, model, feature.list=NULL){
->>>>>>> 3ae8418... Modules updates, functions added, vignettes written
   logit_seq_gene <- function(m){
     prep <- data.frame(design,m)
     fit <- suppressWarnings(glm(model, data=prep, family="binomial"(link="logit"), weights = m))
     sfit <- summary(fit)
     return(c(t(sfit$coefficients)))
   }
-<<<<<<< HEAD
   logit_x <- t(apply(x, 1, logit_seq_gene))
-=======
-  logit.x <- t(apply(x, 1, logit_seq_gene))
->>>>>>> 3ae8418... Modules updates, functions added, vignettes written
-
   prep1 <- cbind.data.frame(design, data.frame(counts1 = as.numeric(x[1,])))
   fit1 <- suppressWarnings(glm(model, data=prep1, family="binomial"(link="logit"), weights = counts1))
   sfit1 <- summary(fit1)
 
-<<<<<<< HEAD
   colnames(logit_x) <- apply(expand.grid(colnames(sfit1$coefficients), rownames(sfit1$coefficients)), 1, paste, collapse="_")
   rownames(logit_x) <- feature_list
   if (long_output == FALSE){
     logit_x <- logit_x[,c(TRUE, FALSE, FALSE, TRUE)]
   }
   return(logit_x)
-=======
-  colnames(logit.x) <- apply(expand.grid(colnames(sfit1$coefficients), rownames(sfit1$coefficients)), 1, paste, collapse=".")
-  rownames(logit.x) <- feature.list
-  return(logit.x)
->>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 }
 
 

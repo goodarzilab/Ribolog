@@ -5,8 +5,21 @@
 \title{partition_to_uniques}
 \usage{
 partition_to_uniques(x, design, uniqueID)
+
+partition_to_uniques(x, design, uniqueID)
 }
 \arguments{
+\item{x}{A data frame or matrix containing RNA+RPF count data where each row is a transcript and each column is RNA or RPF counts of one sample.
+This object must contain only count data (and not, for example, a transcript ID column).}
+
+\item{design}{Design matrix of the experiment describing samples and their attributes.
+The i-th row in the design matrix describes the i-th column in the input data frame \code{x}.}
+
+\item{uniqueID}{A variable (column) of the design matrix defining unique experimental preparations
+from each of which one RNA sample and one RPF sample was derived. It corresponds to the highest resolution
+(lowest level) of classification of samples in the data set apart from the RNA/RPF distinction
+and is usually equal to replicate name in biological experiments.}
+
 \item{x}{A data frame or matrix containing RNA+RPF count data where each row is a transcript and each column is RNA or RPF counts of one sample.
 This object must contain only count data (and not, for example, a transcript ID column).}
 
@@ -20,11 +33,17 @@ and is usually equal to replicate name in biological experiments.}
 }
 \value{
 A list where each element is a data frame containing RNA and RPF count of one replicate and its attributes from the design matrix.
+
+A list where each element is a data frame containing RNA and RPF count of one replicate and its attributes from the design matrix.
 }
 \description{
 Function to convert a RNA+RPF data frame to a sample-by-sample list.
+
+Function to convert a RNA+RPF data frame to a sample-by-sample list.
 }
 \examples{
+rr_LMCN.v2.split <- partition_to_uniques(rr_LMCN.v2[,-1], sample_attributes_LMCN, "replicate_name")
+The first column of the rr_LMCN.v2 contained transcript IDs and was thus excluded from input.
 rr_LMCN.v2.split <- partition_to_uniques(rr_LMCN.v2[,-1], sample_attributes_LMCN, "replicate_name")
 The first column of the rr_LMCN.v2 contained transcript IDs and was thus excluded from input.
 }

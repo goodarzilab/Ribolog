@@ -5,18 +5,33 @@
 \title{generate_correlogram}
 \usage{
 generate_correlogram(x)
+
+generate_correlogram(x)
 }
 \arguments{
+\item{x}{A list of TER test outputs. Each element of the list is a data frame produced by the \code{\link{logit_seq}}
+function comparing two samples.}
+
 \item{x}{A list of TER test outputs. Each element of the list is a data frame produced by the \code{\link{logit_seq}}
 function comparing two samples.}
 }
 \value{
 Correlation matrix of z scores.
+
+Correlation matrix of z scores.
 }
 \description{
 Function to calculate and plot the correlation matrix of TER test z scores.
+
+Function to calculate and plot the correlation matrix of TER test z scores.
 }
 \details{
+Columns 1-4 of each output data frame describe \emph{Estimate}, \emph{SD(Estimate)}, \emph{z score} and \emph{p-value}
+of the logistic regression intercept. Columns 5-8 of the data frames describe \emph{Estimate}, \emph{SD(Estimate)},
+\emph{z score} and \emph{p-value} of the independent variable (predictor) of the TER test. The \code{\link{generate_correlogram}}
+function extracts the 7th column from all data frames and calculates and plots their correlation matrix. This function is an internal
+component of the \code{\link{pairs2correlograms}} function.
+
 Columns 1-4 of each output data frame describe \emph{Estimate}, \emph{SD(Estimate)}, \emph{z score} and \emph{p-value}
 of the logistic regression intercept. Columns 5-8 of the data frames describe \emph{Estimate}, \emph{SD(Estimate)},
 \emph{z score} and \emph{p-value} of the independent variable (predictor) of the TER test. The \code{\link{generate_correlogram}}
