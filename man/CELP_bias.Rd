@@ -23,6 +23,15 @@ A list composed of two lists: 1. bias coefficients 2. bias-corrected read counts
 The bias coefficient list has the following structure: list$<transcript.ID> data.frame: [1] codon_number [2] codon_type [3] aa_type [4] bias_coefficient.
 The bias-corrected read count list has the following structure: list$<sample.name>$<transcript.ID> data.frame:
 [1] codon_number [2] codon_type [3] aa_type [4] observed_count [5] bias_coefficient [6] corrected_count.
+<<<<<<< HEAD
+Gini moderation ensures that the strength of correction is proportional to the original level of heterogenity in read distribution along the transcript.
+
+A list composed of two lists: 1. bias coefficients 2. bias-corrected read counts
+The bias coefficient list has the following structure: list$<transcript.ID> data.frame: [1] codon_number [2] codon_type [3] aa_type [4] bias_coefficient.
+The bias-corrected read count list has the following structure: list$<sample.name>$<transcript.ID> data.frame:
+[1] codon_number [2] codon_type [3] aa_type [4] observed_count [5] loess_pred [6] loess_pred_by_nz_median [7] bias_coefficient [8] corrected_loess.
+=======
+>>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 }
 \description{
 Function to compute codon-level stalling bias coefficients and bias-corrected read counts using the CELP (Consistent Excess of Loess Preds) method

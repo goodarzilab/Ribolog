@@ -28,4 +28,8 @@ is ususally performed at transcript level. This function sums up codon level cou
 \examples{
 rpf_observed_sum_LMCN <- codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "observed_count")
 rpf_corrected_sum_LMCN <- codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "corrected_count")
+<<<<<<< HEAD
+rpf_corrected_sum_LMCN <- codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "corrected_loess")
+=======
+>>>>>>> 3ae8418... Modules updates, functions added, vignettes written
 }

@@ -4,15 +4,16 @@
 \alias{adj_TER_p}
 \title{adj_TER_p}
 \usage{
-adj_TER_p(x, pcols, adj.method)
+adj_TER_p(x, pcols, adj_method)
 }
 \arguments{
 \item{x}{Output object of a logit_seq function}
 
-\item{adj.method}{P-value adjustment method.
-Options: "qvalue", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".}
+\item{pcols}{A vector specifying the positions of unadjusted p-value columns in x}
 
-\item{p.columns}{A vector specifying the positions of unadjusted p-value columns in x}
+\item{adj_method}{P-value adjustment method.
+Options: "qvalue", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".
+"qvalue" calls the \emph{qvalue} package. Other methods are from base R.}
 }
 \value{
 A data frame containing all the original information with the adjusted p-values
@@ -26,6 +27,6 @@ P-values from differential translational efficiency test on individual genes/tra
 are correctd for multiple testing.
 }
 \examples{
-fit.1.qval <- adj_TER_p(fit.1, c(4,8), "qvalue")
-fit.2.fdr <- adj_TER_p(fit.2, c(4,8,12,16), "fdr")
+fit1_LMCN_qval <- adj_TER_p(fit1_LMCN, c(2,4), "qvalue")
+fit3_LMCN_fdr <- adj_TER_p(fit3_LMCN, c(2,4,6,8), "fdr")
 }
