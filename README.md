@@ -31,9 +31,31 @@ The Ribolog workflow is described in great detail in the package vignettes (RIBO
 ![Logo-r](https://github.com/Goodarzilab/Ribolog/blob/master/vignettes/Ribolog_workflow.v5.png)
 
 ## Installing Ribolog
-Run the following command in R:
 
-`install_github("Goodarzilab/Ribolog", dependencies = TRUE, build_vignettes = FALSE, build_manual = FALSE)`
+<b> Step 1:</b> Make sure to have all the necessary development tools installed on your system. Run these in the command line to install them: <br/>
+
+In Ubuntu (or computing servers):
+```sh
+sudo apt-get install build-essential libcurl4-gnutls-dev libxml2-dev libssl-dev libz-dev libbz2-dev liblzma-dev
+```
+
+In Linux
+```sh
+sudo yum groupinstall 'Development Tools'
+```
+
+In Mac (if you don't have development tools/ Xcode installed)
+```sh
+xcode-select --install
+```
+
+<b> Step 2:</b>  Run the following commands in R:
+
+```R
+install.packages(c('devtools', 'BiocManager'))
+BiocManager::install(c("GenomicAlignments", "qvalue"))
+devtools::install_github("sohitmiglani/Ribolog", dependencies = TRUE, build_vignettes = FALSE, build_manual = FALSE)
+```
 
 Rendering the vignettes during installation requires bam files that are not uploaded onto this repository. The knitted .pdf file should be downloaded directly from the vignettes folder instead.
 
