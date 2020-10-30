@@ -54,7 +54,7 @@ xcode-select --install
 ```R
 install.packages(c('devtools', 'BiocManager'))
 BiocManager::install(c("GenomicAlignments", "qvalue"))
-devtools::install_github("sohitmiglani/Ribolog", dependencies = TRUE, build_vignettes = FALSE, build_manual = FALSE)
+devtools::install_github("Goodarzilab/Ribolog", dependencies = TRUE, build_vignettes = FALSE, build_manual = FALSE)
 ```
 
 Rendering the vignettes during installation requires bam files that are not uploaded onto this repository. The knitted .pdf file should be downloaded directly from the vignettes folder instead.
