@@ -1,8 +1,6 @@
 #' @import data.table
 #' @import ggfortify
 #' @import Biostrings
-#' @import devtools
-#' @import riboWaltz
 #' @import ggplot2
 #' @import ggrepel
 #' @import dplyr
