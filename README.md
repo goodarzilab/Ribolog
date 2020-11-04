@@ -61,10 +61,8 @@ devtools::install_github("Goodarzilab/Ribolog", dependencies = TRUE, build_vigne
 Run the code below in your terminal to build and activate a conda environment with all the dependencies of Ribolog inside it.
 
 ```sh
-git clone https://github.com/goodarzilab/Ribolog
-conda env create -f ./Ribolog/environment.yml
-conda activate Ribolog
-# Now you're inside the conda environment
+conda env create -f 'https://raw.githubusercontent.com/goodarzilab/Ribolog/master/environment.yml'
+conda activate Ribolog # Now you're inside the conda environment
 R -e "devtools::install_github('Goodarzilab/Ribolog', dependencies = FALSE)"
 ```
 
