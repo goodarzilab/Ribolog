@@ -7,6 +7,7 @@ dependencies:
   - python=3.8
   - bioconductor-GenomicAlignments
   - bioconductor-qvalue
+  - r-devtools
   - r-data.table
   - r-ggfortify
   - r-ggplot2
