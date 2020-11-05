@@ -34,6 +34,8 @@ The Ribolog workflow is described in great detail in the package vignettes (RIBO
 
 <b> Step 1:</b> Make sure to have all the necessary development tools installed on your system. Run these in the command line to install them: <br/>
 
+- Skip this step if you use Windows.
+
 In Ubuntu (or computing servers):
 ```sh
 sudo apt-get install build-essential libcurl4-gnutls-dev libxml2-dev libssl-dev libz-dev libbz2-dev liblzma-dev
