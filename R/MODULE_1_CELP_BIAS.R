@@ -258,7 +258,7 @@ rends_heat_rW <- function(reads_list, annotation, sample, transcripts = NULL, cl
     c_transcripts <- l_transcripts
   }
   else {
-    c_transcripts <- intersect(l_transcripts, transcripts)
+    c_transcripts <- Biostrings::intersect(l_transcripts, transcripts)
   }
   dt <- temp_dt[transcript %in% c_transcripts]
   temp_dt[, `:=`(c("start_dist_end5", "stop_dist_end5", "start_dist_end3",
@@ -810,7 +810,7 @@ metaprofile_psite_rW <- function(reads_psite_list, annotation, sample, scale_fac
     ntr <- length(c_transcripts)
   }
   else {
-    c_transcripts <- intersect(l_transcripts, transcripts)
+    c_transcripts <- Biostrings::intersect(l_transcripts, transcripts)
     ntr <- length(transcripts)
   }
   length_temp <- vector()
@@ -849,7 +849,7 @@ metaprofile_psite_rW <- function(reads_psite_list, annotation, sample, scale_fac
     length_temp <- unique(c(length_temp, data[[samp]]$length))
   }
   if (!identical(length_range, "all")) {
-    length_range <- sort(intersect(length_temp, length_range))
+    length_range <- sort(Biostrings::intersect(length_temp, length_range))
   }
   else {
     length_range <- sort(length_temp)
@@ -1030,7 +1030,7 @@ frame_psite_rW <- function (reads_psite_list, sample = NULL, transcripts = NULL,
     length_temp <- unique(c(length_temp, data[[samp]]$length))
   }
   if (!identical(length_range, "all")) {
-    length_range <- sort(intersect(length_range, length_temp))
+    length_range <- sort(Biostrings::intersect(length_range, length_temp))
   }
   else {
     length_range <- sort(length_temp)

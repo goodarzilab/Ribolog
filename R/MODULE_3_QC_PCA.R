@@ -298,129 +298,6 @@ generate_correlogram <- function(x){
 }
 
 
-#' @title partition_to_uniques
-#' @description Function to convert a RNA+RPF data frame to a sample-by-sample list.
-#' @param x A data frame or matrix containing RNA+RPF count data where each row is a transcript and each column is RNA or RPF counts of one sample.
-#' This object must contain only count data (and not, for example, a transcript ID column).
-#' @param design Design matrix of the experiment describing samples and their attributes.
-#' The i-th row in the design matrix describes the i-th column in the input data frame \code{x}.
-#' @param uniqueID A variable (column) of the design matrix defining unique experimental preparations
-#' from each of which one RNA sample and one RPF sample was derived. It corresponds to the highest resolution
-#' (lowest level) of classification of samples in the data set apart from the RNA/RPF distinction
-#' and is usually equal to replicate name in biological experiments.
-#' @return A list where each element is a data frame containing RNA and RPF count of one replicate and its attributes from the design matrix.
-#' @examples
-#' rr_LMCN.v2.split <- partition_to_uniques(rr_LMCN.v2[,-1], sample_attributes_LMCN, "replicate_name")
-#' The first column of the rr_LMCN.v2 contained transcript IDs and was thus excluded from input.
-#' @export
-partition_to_uniques <- function(x, design, uniqueID){
-  xt <- t(x)
-  xtd <- cbind(design, xt)
-  xtdl <- split(xtd, xtd[,uniqueID])
-  return(xtdl)
-}
-
-
-
-#' @title TER_all_pairs
-#' @description Function to perform the logit TER test between all pairs of samples in a data set.
-#' @param x A sample-by-sample list of RNA and RPF count data and sample attributes produced by \code{\link{partition_to_uniques}}.
-#' @param design Design matrix of the experiment describing samples and their attributes.
-#' @param outcome The variable determining whether a vector of read counts is RNA or RPF.
-#' This is usually the name of the response variable in the TER test logistic regression performed through \code{\link{logit_seq}}. Default: \code{"read_type"}.
-#' @param uniqueID A variable (column) of the design matrix defining unique experimental preparations
-#' from each of which one RNA sample and one RPF sample was derived. It corresponds to the highest resolution
-#' (lowest level) of classification of samples in the data set apart from the RNA/RPF distinction
-#' and is usually equal to replicate name in biological experiments.
-#' @param groupID A variable (column) of the design matrix indicating which replicates should be grouped together.
-#' All experimental units having the same \code{groupID} will be considered replicates of the same biological sample
-#' (or members of the same group of samples).
-#' @return
-#' A list of lists containig the results of all pairwise TER tests. If there are n samples in the input list, the output list will consist of C(n,2) elements.
-#' Each element of the list is in turn a list with four attributes:
-#' - \code{uniqueID}s of the two samples compared
-#' - \code{groupID}s of the two samples compared
-#' - \code{pair_type} (\code{"homo"} if the two \code{groupID}s are equal and \code{"hetero"} otherwise)
-#' - \code{fit} containing the output of the TER test in a data frame. See \code{\link{logit_seq}} for details.
-#' @examples
-#' rr_LMCN.v2.pairwise <- TER_all_pairs(rr_LMCN.v2.split, sample_attributes_LMCN, "read_type", "replicate_name", "cell_line")
-#' @export
-TER_all_pairs <- function(x, design, outcome = "read_type", uniqueID, groupID){
-  pair_results <- list()
-  n <- length(x)
-  n_design_cols <- dim(design)[2]
-
-  for (i in c(2:n)){
-    for (j in c(1:(i-1))){
-      list_ij <- list()
-      list_ij[["uniqueIDs"]] <- sort(c(names(x)[i], names(x)[j]))
-
-      list_ij[["groupIDs"]] <- sort(c(as.character(x[[i]][, groupID][1]), as.character(x[[j]][, groupID][1])))
-      if (identical(list_ij[["groupIDs"]][1], list_ij[["groupIDs"]][2])) list_ij[["pair_type"]] = "homo" else list_ij[["pair_type"]] = "hetero"
-
-      model1 <- as.formula(paste(outcome, uniqueID, sep = "~"))
-      data_ij <- rbind(x[[i]], x[[j]])[, -c(1:n_design_cols)]
-      design_ij <- rbind(x[[i]], x[[j]])[, c(1:n_design_cols)]
-      list_ij[["fit"]] <- Ribolog::logit_seq(t(data_ij), design_ij, model1)
-      name_ij <- paste(list_ij[["uniqueIDs"]], collapse = "_vs_")
-      pair_results[[name_ij]] <- list_ij
-
-    }
-  }
-  return(pair_results)
-}
-
-
-
-#' @title pairs2pi0s
-#' @description Function to estimate and plot the proportion of null features from pairwise TER tests.
-#' @param x A list of the results of TER tests between all pairs of samples in a data set produced by \code{\link{TER_all_pairs}}.
-#' @param outfile The path and name of the output pdf file. Default: NULL.
-#' @return A data frame describing uniqueIDs and groupIDs of pairs of compared samples, the \code{pair_type ("Homo" or "Hetero")}
-#' and the estimated \emph{pi0} (proportion of null features aka not differentially translated transcripts).
-#' @details A histogram of \emph{pi0}s is created colored by pair type. If \code{outfile} is given, the histogram will be saved to the pdf file, too.
-#' \code{"Homo"} pairs are expected to have a higher proportion of null features than \code{"Hetero"} pairs.
-#' @examples
-#' pi0df_LMCN <- pairs2pi0s(rr_LMCN.v2.pairwise)
-#' @export
-pairs2pi0s <- function(x, outfile = NULL){
-  pi0df <- data.frame(t(sapply(x, function(y) c(y[[1]], y[[2]], y[[3]], qvalue::pi0est(y[[4]][, 8])$pi0))))
-  names(pi0df) <- c("uniqueID1", "uniqueID2", "groupID1", "groupID2", "pair_type", "pi0")
-  pi0df$pi0 <- as.numeric(as.character(pi0df$pi0))
-  pi0hist <- ggplot(pi0df, aes(x=as.numeric(pi0), fill=as.factor(pair_type))) +
-    geom_histogram(binwidth = 0.05) + guides(fill=guide_legend(title="Pair type")) +
-    labs(x="Proportion of NULL features")
-  print(pi0hist)
-  if (!is.null(outfile)){
-    pdf(outfile)
-    print(pi0hist)
-    dev.off()
-  }
-  return(pi0df)
-}
-
-
-
-#' @title generate_correlogram
-#' @description Function to calculate and plot the correlation matrix of TER test z scores.
-#' @param x A list of TER test outputs. Each element of the list is a data frame produced by the \code{\link{logit_seq}}
-#' function comparing two samples.
-#' @details
-#' Columns 1-4 of each output data frame describe \emph{Estimate}, \emph{SD(Estimate)}, \emph{z score} and \emph{p-value}
-#' of the logistic regression intercept. Columns 5-8 of the data frames describe \emph{Estimate}, \emph{SD(Estimate)},
-#' \emph{z score} and \emph{p-value} of the independent variable (predictor) of the TER test. The \code{\link{generate_correlogram}}
-#' function extracts the 7th column from all data frames and calculates and plots their correlation matrix. This function is an internal
-#' component of the \code{\link{pairs2correlograms}} function.
-#' @return Correlation matrix of z scores.
-#' @export
-generate_correlogram <- function(x){
-  xz <- sapply(x, function(y) y$fit[,7])
-  xz_cor <- cor(xz)
-  print(corrplot::corrplot(xz_cor, method="color", addCoef.col = "white"))
-  return(xz_cor)
-}
-
-
 
 #' @title pairs2correlograms
 #' @description Function to calculate and plot correlograms from equivalent pairwise TER tests.
@@ -438,9 +315,9 @@ generate_correlogram <- function(x){
 pairs2correlograms <- function(x, outfile = NULL){
   xhets <- rlist::list.filter(x, pair_type == "hetero")
   xhets_grouped <- rlist::list.group(xhets, groupIDs)
-  xzcors <- lapply(xhets_grouped, function(x) generate_correlogram(x))
+  xzcors <- lapply(xhets_grouped, function(x) Ribolog::generate_correlogram(x))
   pdf(outfile)
-  xzcors <- lapply(xhets_grouped, function(x) generate_correlogram(x))
+  xzcors <- lapply(xhets_grouped, function(x) Ribolog::generate_correlogram(x))
   dev.off()
   return(xzcors)
 }
