@@ -1,3 +1,29 @@
+#' @import data.table
+#' @import ggfortify
+#' @import Biostrings
+#' @import ggplot2
+#' @import ggrepel
+#' @import dplyr
+#' @import plyr
+#' @import cowplot
+#' @import robustbase
+#' @import qvalue
+#' @import nortest
+#' @import fitdistrplus
+#' @import matrixStats
+#' @import sm
+#' @import epiR
+#' @import corrplot
+#' @import mvmeta
+#' @import DescTools
+#' @import GenomicAlignments
+#' @import corrplot
+#' @import rlist
+#' @import gdata
+#' @import nlme
+
+
+
 #' @title min_count_filter
 #' @description Function to filter out genes with counts below a minimum in one or more samples.
 #' @param x Input data frame containing RNA-seq or Ribo-seq data.

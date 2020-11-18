@@ -1,3 +1,29 @@
+#' @import data.table
+#' @import ggfortify
+#' @import Biostrings
+#' @import ggplot2
+#' @import ggrepel
+#' @import dplyr
+#' @import plyr
+#' @import cowplot
+#' @import robustbase
+#' @import qvalue
+#' @import nortest
+#' @import fitdistrplus
+#' @import matrixStats
+#' @import sm
+#' @import epiR
+#' @import corrplot
+#' @import mvmeta
+#' @import DescTools
+#' @import GenomicAlignments
+#' @import corrplot
+#' @import rlist
+#' @import gdata
+#' @import nlme
+
+
+
 #' @title logit_seq
 #' @description Function to perform the logistic regression test for differential translational efficiency
 #' @param x Input data frame where each column contains RNA or RPF counts from a single sample.

@@ -1,3 +1,29 @@
+#' @import data.table
+#' @import ggfortify
+#' @import Biostrings
+#' @import ggplot2
+#' @import ggrepel
+#' @import dplyr
+#' @import plyr
+#' @import cowplot
+#' @import robustbase
+#' @import qvalue
+#' @import nortest
+#' @import fitdistrplus
+#' @import matrixStats
+#' @import sm
+#' @import epiR
+#' @import corrplot
+#' @import mvmeta
+#' @import DescTools
+#' @import GenomicAlignments
+#' @import corrplot
+#' @import rlist
+#' @import gdata
+#' @import nlme
+
+
+
 #' @title read_annotation
 #' @description Function to create an annotation data table from a txt file.
 #' @param annotation_file An annotation txt file listing transcript names and lengths of their 5'UTR, CDS and 3'UTR segments.

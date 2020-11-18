@@ -1,3 +1,29 @@
+#' @import data.table
+#' @import ggfortify
+#' @import Biostrings
+#' @import ggplot2
+#' @import ggrepel
+#' @import dplyr
+#' @import plyr
+#' @import cowplot
+#' @import robustbase
+#' @import qvalue
+#' @import nortest
+#' @import fitdistrplus
+#' @import matrixStats
+#' @import sm
+#' @import epiR
+#' @import corrplot
+#' @import mvmeta
+#' @import DescTools
+#' @import GenomicAlignments
+#' @import corrplot
+#' @import rlist
+#' @import gdata
+#' @import nlme
+
+
+
 #' @title bam2count
 #' @description Function to generate a read counts table from bam files
 #' @param bamfolder Path to the folder containing bam files (one bam file per sample is expected)

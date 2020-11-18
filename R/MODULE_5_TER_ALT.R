@@ -1,3 +1,29 @@
+#' @import data.table
+#' @import ggfortify
+#' @import Biostrings
+#' @import ggplot2
+#' @import ggrepel
+#' @import dplyr
+#' @import plyr
+#' @import cowplot
+#' @import robustbase
+#' @import qvalue
+#' @import nortest
+#' @import fitdistrplus
+#' @import matrixStats
+#' @import sm
+#' @import epiR
+#' @import corrplot
+#' @import mvmeta
+#' @import DescTools
+#' @import GenomicAlignments
+#' @import corrplot
+#' @import rlist
+#' @import gdata
+#' @import nlme
+
+
+
 #' @title generate_ENZ
 #' @description Function to generate empirical null distribution.
 #' @param x A sample-by-sample list of RNA and RPF count data and sample attributes produced by \code{\link{partition_to_uniques}}.
@@ -266,3 +292,4 @@ add_sd_z <- function(x){
                       colnames(x)[c(FALSE, TRUE)])))
   return(x_out)
 }
+
