@@ -1,11 +1,8 @@
 #' @import data.table
-#' @import ggfortify
 #' @import Biostrings
 #' @import ggplot2
 #' @import ggrepel
 #' @import dplyr
-#' @import plyr
-#' @import cowplot
 #' @import robustbase
 #' @import qvalue
 #' @import nortest
@@ -17,7 +14,6 @@
 #' @import mvmeta
 #' @import DescTools
 #' @import GenomicAlignments
-#' @import corrplot
 #' @import rlist
 #' @import gdata
 #' @import nlme
@@ -51,7 +47,7 @@ bam2count <- function(bamfolder, annotation){
   for (n_i in names){
     filename <- paste(bamfolder, n_i, sep = "/")
     bam_i <- GenomicAlignments::readGAlignments(filename)
-    counts_i <- plyr::count(as.data.frame(bam_i), "seqnames")
+    counts_i <- as.data.frame(bam_i) %>% dplyr::count(seqnames)
     sample_name_i <- unlist(strsplit(n_i, ".bam"))
     names(counts_i) <- c("transcript", sample_name_i)
     counts_list[[sample_name_i]] <- counts_i

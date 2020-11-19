@@ -1,11 +1,8 @@
 #' @import data.table
-#' @import ggfortify
 #' @import Biostrings
 #' @import ggplot2
 #' @import ggrepel
 #' @import dplyr
-#' @import plyr
-#' @import cowplot
 #' @import robustbase
 #' @import qvalue
 #' @import nortest
@@ -17,7 +14,6 @@
 #' @import mvmeta
 #' @import DescTools
 #' @import GenomicAlignments
-#' @import corrplot
 #' @import rlist
 #' @import gdata
 #' @import nlme
@@ -292,4 +288,3 @@ add_sd_z <- function(x){
                       colnames(x)[c(FALSE, TRUE)])))
   return(x_out)
 }
-

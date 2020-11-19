@@ -1,11 +1,8 @@
 #' @import data.table
-#' @import ggfortify
 #' @import Biostrings
 #' @import ggplot2
 #' @import ggrepel
 #' @import dplyr
-#' @import plyr
-#' @import cowplot
 #' @import robustbase
 #' @import qvalue
 #' @import nortest
@@ -17,7 +14,6 @@
 #' @import mvmeta
 #' @import DescTools
 #' @import GenomicAlignments
-#' @import corrplot
 #' @import rlist
 #' @import gdata
 #' @import nlme
@@ -214,13 +210,17 @@ rlength_distr_rW <- function(reads_list, sample, transcripts = NULL, cl = 99){
 #' @examples
 #' print_read_ldist(reads_list_LMCN, "<file.path>/LMCN_RPF_Read_length_distributions.pdf")
 #' @export
-print_read_ldist <- function(reads_list, outfile, cl=99){
-  pdf(outfile)
+print_read_ldist <- function(reads_list, inline=TRUE, outfile='reads_length_distribution.pdf', cl=99){
+
+  if (!inline) { pdf(outfile)}
   for (sample_i in names(reads_list)){
     length_dist_zoom <- rlength_distr_rW(reads_list, sample=sample_i, cl=cl)
     print(length_dist_zoom[["plot"]])
   }
-  dev.off()
+  if (!inline) {
+    dev.off()
+    sprintf("PDF (%s) created and saved", outfile)
+  }
 }
 
 
@@ -342,14 +342,19 @@ rends_heat_rW <- function(reads_list, annotation, sample, transcripts = NULL, cl
 #' @examples
 #' print_read_end_heatmap(reads_list_LMCN, annotation_human_cDNA, "<file.path>/LMCN_RPF_read_end_heatmaps.pdf")
 #' @export
-print_read_end_heatmap <- function(reads_list, annotation, outfile, cl=85, utr5l = 50, cdsl = 50, utr3l = 50){
-  pdf(outfile, width=20, height=10)
+print_read_end_heatmap <- function(reads_list, annotation, inline=TRUE, outfile='read_end_heatmaps.pdf',
+                               cl=85, utr5l = 50, cdsl = 50, utr3l = 50){
+
+  if (!inline) {pdf(outfile, width=20, height=10)}
   for (sample_i in names(reads_list)){
     ends_heatmap_i <- rends_heat_rW(reads_list, annotation, sample=sample_i,
                                     cl=cl, utr5l = utr5l, cdsl = cdsl, utr3l = utr3l)
     print(ends_heatmap_i[["plot"]])
   }
-  dev.off()
+  if (!inline) {
+    dev.off()
+    sprintf("PDF (%s) created and saved", outfile)
+  }
 }
 
 
@@ -931,13 +936,17 @@ metaprofile_psite_rW <- function(reads_psite_list, annotation, sample, scale_fac
 #' @examples
 #' print_rop(LMCN_reads_psite_list, annotation_human_cDNA, "<file.path>/LMCN_RPF_ribosome_occupancy_profiles.pdf")
 #' @export
-print_rop <- function(reads_psite_list, annotation, outfile){
-  pdf(outfile, width=20, height=10)
+print_rop <- function(reads_psite_list, annotation, inline=TRUE, outfile='ribosome_occupancy_profiles.pdf'){
+
+  if (!inline) { pdf(outfile, width=20, height=10) }
   for (sample_i in names(reads_psite_list)){
     metaprofile_psite_sample_i <- metaprofile_psite_rW(reads_psite_list, annotation, sample = sample_i, plot_title = sample_i)
     print(metaprofile_psite_sample_i[["plot"]])
   }
-  dev.off()
+  if (!inline) {
+    dev.off()
+    sprintf("PDF (%s) created and saved", outfile)
+  }
 }
 
 
@@ -1118,13 +1127,16 @@ frame_psite_rW <- function (reads_psite_list, sample = NULL, transcripts = NULL,
 #' @examples
 #' print_period_region(reads_psite_list_LMCN, "<file.path>/LMCN_Periodicity_by_region.pdf")
 #' @export
-print_period_region <- function(reads_psite_list, outfile){
-  pdf(outfile)
+print_period_region <- function(reads_psite_list, inline=TRUE, outfile='periodicity_by_region.pdf'){
+  if (!inline) { pdf(outfile) }
   for (sample_i in names(reads_psite_list)){
     frames_i <- frame_psite_rW(reads_psite_list, sample=sample_i, region="all")
     print(frames_i[["plot"]])
   }
-  dev.off()
+  if (!inline) {
+    dev.off()
+    sprintf("PDF (%s) created and saved", outfile)
+  }
 }
 
 
@@ -1298,13 +1310,16 @@ frame_psite_length_rW <- function (reads_psite_list, sample = NULL, transcripts 
 #' @examples
 #' print_period_region_length(reads_psite_list, "<file.path>/Periodicity_by_length_region2.pdf")
 #' @export
-print_period_region_length <- function(reads_psite_list, outfile, cl=95){
-  pdf(outfile, width=20, height=15)
+print_period_region_length <- function(reads_psite_list, inline=TRUE, outfile='periodicity_by_length_region2.pdf', cl=95){
+  if (!inline) { pdf(outfile, width=20, height=15) }
   for (sample_i in names(reads_psite_list)){
     frames_stratified_i <- frame_psite_length_rW(reads_psite_list, sample=sample_i, region="all", cl=cl)
     print(frames_stratified_i[["plot"]])
   }
-  dev.off()
+  if (!inline) {
+    dev.off()
+    sprintf("PDF (%s) created and saved", outfile)
+  }
 }
 
 
@@ -1381,7 +1396,7 @@ psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fas
     row.names(df.temp) <- NULL
     return(df.temp)
   }
-  tr_codon_read_count <- lapply(reads_psite_list.m, function(x) plyr::count(x, c("transcript", "codon_number")))
+  tr_codon_read_count <- lapply(reads_psite_list.m, function(x) x %>% dplyr::count(transcript, codon_number)))
   tr_codon_read_count.s <- lapply(tr_codon_read_count, function(x) split(x, x$transcript))
   tr_codon_read_count.s2 <- lapply(tr_codon_read_count.s, function(x) lapply(x, trim_tr_read_df))
 
