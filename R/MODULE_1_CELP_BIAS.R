@@ -1396,7 +1396,7 @@ psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fas
     row.names(df.temp) <- NULL
     return(df.temp)
   }
-  tr_codon_read_count <- lapply(reads_psite_list.m, function(x) x %>% dplyr::count(transcript, codon_number)))
+  tr_codon_read_count <- lapply(reads_psite_list.m, function(x) x %>% dplyr::count(transcript, codon_number))
   tr_codon_read_count.s <- lapply(tr_codon_read_count, function(x) split(x, x$transcript))
   tr_codon_read_count.s2 <- lapply(tr_codon_read_count.s, function(x) lapply(x, trim_tr_read_df))
 
