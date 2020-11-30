@@ -1649,7 +1649,7 @@ visualize_CELP <- function(tr_codon_read_count_loess_corrected_list, transcript,
   ylim_low <- (-1) * max(unlist(lapply(x_tr, function(y) max(y$corrected_count))))
 
   if (is.null(outfile)){
-    par(mfrow = c(panel_rows, panel_cols)
+    par(mfrow = c(panel_rows, panel_cols))
   } else {
     pdf(outfile, height = 10, width = 20)
   }
