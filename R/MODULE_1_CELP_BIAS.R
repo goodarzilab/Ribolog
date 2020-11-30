@@ -18,7 +18,8 @@
 #' @import gdata
 #' @import nlme
 
-
+## Possible problems: robustbase, nortest
+## Being used: matrixStats
 
 #' @title read_annotation
 #' @description Function to create an annotation data table from a txt file.
@@ -210,14 +211,16 @@ rlength_distr_rW <- function(reads_list, sample, transcripts = NULL, cl = 99){
 #' @examples
 #' print_read_ldist(reads_list_LMCN, "<file.path>/LMCN_RPF_Read_length_distributions.pdf")
 #' @export
-print_read_ldist <- function(reads_list, inline=TRUE, outfile='reads_length_distribution.pdf', cl=99){
+print_read_ldist <- function(reads_list, outfile=NULL, cl=99){
 
-  if (!inline) { pdf(outfile)}
+  if (!is.null(outfile)) { pdf(outfile)}
+
   for (sample_i in names(reads_list)){
     length_dist_zoom <- rlength_distr_rW(reads_list, sample=sample_i, cl=cl)
     print(length_dist_zoom[["plot"]])
   }
-  if (!inline) {
+
+  if (!is.null(outfile)) {
     dev.off()
     sprintf("PDF (%s) created and saved", outfile)
   }
@@ -342,16 +345,18 @@ rends_heat_rW <- function(reads_list, annotation, sample, transcripts = NULL, cl
 #' @examples
 #' print_read_end_heatmap(reads_list_LMCN, annotation_human_cDNA, "<file.path>/LMCN_RPF_read_end_heatmaps.pdf")
 #' @export
-print_read_end_heatmap <- function(reads_list, annotation, inline=TRUE, outfile='read_end_heatmaps.pdf',
+print_read_end_heatmap <- function(reads_list, annotation, outfile=NULL,
                                cl=85, utr5l = 50, cdsl = 50, utr3l = 50){
 
-  if (!inline) {pdf(outfile, width=20, height=10)}
+  if (!is.null(outfile)) {pdf(outfile, width=20, height=10)}
+
   for (sample_i in names(reads_list)){
     ends_heatmap_i <- rends_heat_rW(reads_list, annotation, sample=sample_i,
                                     cl=cl, utr5l = utr5l, cdsl = cdsl, utr3l = utr3l)
     print(ends_heatmap_i[["plot"]])
   }
-  if (!inline) {
+
+  if (!is.null(outfile)) {
     dev.off()
     sprintf("PDF (%s) created and saved", outfile)
   }
@@ -936,20 +941,22 @@ metaprofile_psite_rW <- function(reads_psite_list, annotation, sample, scale_fac
 #' @examples
 #' print_rop(LMCN_reads_psite_list, annotation_human_cDNA, "<file.path>/LMCN_RPF_ribosome_occupancy_profiles.pdf")
 #' @export
-print_rop <- function(reads_psite_list, annotation, inline=TRUE, outfile='ribosome_occupancy_profiles.pdf'){
+print_rop <- function(reads_psite_list, annotation, outfile='ribosome_occupancy_profiles.pdf'){
 
-  if (!inline) { pdf(outfile, width=20, height=10) }
-  for (sample_i in names(reads_psite_list)){
+  if ( !is.null(outfile) ) { pdf(outfile, width=20, height=10) }
+
+  for (sample_i in names(reads_psite_list)) {
     metaprofile_psite_sample_i <- metaprofile_psite_rW(reads_psite_list, annotation, sample = sample_i, plot_title = sample_i)
     print(metaprofile_psite_sample_i[["plot"]])
   }
-  if (!inline) {
+
+  if ( !is.null(outfile) ) {
     dev.off()
     sprintf("PDF (%s) created and saved", outfile)
   }
 }
 
-
+### This function below is not being used directly in the vignette
 
 #' @title frame_psite_rW
 #' @description Function to plot the percentage of psites falling into each of the three reading frames (periodicity)
@@ -962,7 +969,7 @@ print_rop <- function(reads_psite_list, annotation, inline=TRUE, outfile='riboso
 #' @details This function produces bar plots of the percentage of psites falling into each of the three possible reading frames,
 #' separately for 5' UTR, CDS and 3' UTR regions. In a good dataset, psites in CDS should be enriched for frame 1.
 #' @examples
-#' frame_psite_rW(reads_psite_list_LMCN, "CN34_r2_rpf")
+#' frame_psites <- frame_psite_rW(reads_psite_list_LMCN, "CN34_r2_rpf")
 #' @export
 frame_psite_rW <- function (reads_psite_list, sample = NULL, transcripts = NULL, region = "all",
                             length_range = "all", plot_title = NULL){
@@ -1127,13 +1134,16 @@ frame_psite_rW <- function (reads_psite_list, sample = NULL, transcripts = NULL,
 #' @examples
 #' print_period_region(reads_psite_list_LMCN, "<file.path>/LMCN_Periodicity_by_region.pdf")
 #' @export
-print_period_region <- function(reads_psite_list, inline=TRUE, outfile='periodicity_by_region.pdf'){
-  if (!inline) { pdf(outfile) }
+print_period_region <- function(reads_psite_list, outfile=NULL){
+
+  if (!is.null(outfile)) { pdf(outfile) }
+
   for (sample_i in names(reads_psite_list)){
     frames_i <- frame_psite_rW(reads_psite_list, sample=sample_i, region="all")
     print(frames_i[["plot"]])
   }
-  if (!inline) {
+
+  if (!is.null(outfile)) {
     dev.off()
     sprintf("PDF (%s) created and saved", outfile)
   }
@@ -1152,7 +1162,7 @@ print_period_region <- function(reads_psite_list, inline=TRUE, outfile='periodic
 #' @param cl An integer in [1,100] specifying a confidence level to restrict the plot to a sub-range of read lengths.
 #' Use this argument to avoid printing out uncommon read lengths. Default:95.
 #' @examples
-#' print_period_region_length(reads_psite_list_LMCN, "<file.path>/LMCN_Periodicity_by_length_region.pdf")
+#' frame_psite_length_rW(reads_psite_list, sample=sample_i, region="all", cl=cl)
 #' @export
 
 frame_psite_length_rW <- function (reads_psite_list, sample = NULL, transcripts = NULL, region = "all",
@@ -1310,13 +1320,15 @@ frame_psite_length_rW <- function (reads_psite_list, sample = NULL, transcripts 
 #' @examples
 #' print_period_region_length(reads_psite_list, "<file.path>/Periodicity_by_length_region2.pdf")
 #' @export
-print_period_region_length <- function(reads_psite_list, inline=TRUE, outfile='periodicity_by_length_region2.pdf', cl=95){
-  if (!inline) { pdf(outfile, width=20, height=15) }
+print_period_region_length <- function(reads_psite_list, outfile='periodicity_by_length_region2.pdf', cl=95){
+  if (!is.null(outfile)) { pdf(outfile, width=20, height=15) }
+
   for (sample_i in names(reads_psite_list)){
     frames_stratified_i <- frame_psite_length_rW(reads_psite_list, sample=sample_i, region="all", cl=cl)
     print(frames_stratified_i[["plot"]])
   }
-  if (!inline) {
+
+  if (!is.null(outfile)) {
     dev.off()
     sprintf("PDF (%s) created and saved", outfile)
   }
@@ -1579,7 +1591,7 @@ CELP_bias <- function(tr_codon_read_count_list, codon_raduis = 5, loess_method =
 #' rpf_corrected_sum_LMCN <- codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "corrected_count")
 #' @return A data frame where the first column is transcript IDs and the remaining columns contain per transcript read counts for all samples.
 #' @export
-codon2transcript <- function(tr_codon_read_count_loess_corrected_list, count_type){
+codon2transcript <- function(tr_codon_read_count_loess_corrected_list, count_type) {
   count_sum <- as.data.frame(sapply(tr_codon_read_count_loess_corrected_list, function(x) sapply(x, function(y) sum(y[count_type]))))
 
   count_sum$transcript <- rownames(count_sum)
@@ -1635,18 +1647,19 @@ visualize_CELP <- function(tr_codon_read_count_loess_corrected_list, transcript,
   x_tr <- lapply(tr_codon_read_count_loess_corrected_list, function(y) y[[transcript]])
   ylim_up <- max(unlist(lapply(x_tr, function(y) max(y$observed_count))))
   ylim_low <- (-1) * max(unlist(lapply(x_tr, function(y) max(y$corrected_count))))
+
   if (is.null(outfile)){
-    par(mfrow = c(panel_rows, panel_cols))
-    for (s in names(x_tr)){
-      plot_mirrors_CELP(x_tr[[s]], ylim_low_i = ylim_low, ylim_up_i = ylim_up, xlim_low_i = from_codon, xlim_up_i = to_codon, s)
-    }
+    par(mfrow = c(panel_rows, panel_cols)
   } else {
     pdf(outfile, height = 10, width = 20)
-    par(mfrow = c(panel_rows, panel_cols))
-    for (s in names(x_tr)){
-      plot_mirrors_CELP(x_tr[[s]], ylim_low_i = ylim_low, ylim_up_i = ylim_up, xlim_low_i = from_codon, xlim_up_i = to_codon, s)
-    }
-    dev.off()
   }
-  return()
+
+  for (s in names(x_tr)) {
+    plot_mirrors_CELP(x_tr[[s]], ylim_low_i = ylim_low, ylim_up_i = ylim_up, xlim_low_i = from_codon, xlim_up_i = to_codon, s)
+  }
+
+  if (!is.null(outfile)) {
+    dev.off()
+    sprintf("PDF (%s) created and saved", outfile)
+  }
 }
