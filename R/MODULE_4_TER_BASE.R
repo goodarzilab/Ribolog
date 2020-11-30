@@ -5,7 +5,7 @@
 #' @import dplyr
 #' @import robustbase
 #' @import qvalue
-#' @import nortests
+#' @import nortest
 #' @import fitdistrplus
 #' @import matrixStats
 #' @import sm
