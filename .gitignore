@@ -39,3 +39,7 @@ inst/doc
 
 # Data-raw files
 /data-raw/*.*
+
+# Mac files
+
+.DS_Store
