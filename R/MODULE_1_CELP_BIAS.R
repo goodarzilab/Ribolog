@@ -45,6 +45,54 @@ read_annotation <- function(annotation_file){
 }
 
 
+#' @title load_annotation_and_cdna
+#' @description Function to load pre-existing annotation data table and cDNA fasta file
+#' @param organism Specify one of the organisms that you'd like to query
+#' @export
+load_annotation_and_cdna <- function(organism){
+
+  organism_list <- c('arabidopsis', 'fly', 'human', 'maize', 'mouse', 'rat', 'worm', 'yeast', 'zebrafish')
+  if (! organism %in% organism_list){
+    stop(sprintf("Error. Ribolog has the preloaded annotation of only the following organisms: ( %s ) ", organism_list))
+  }
+
+  sprintf("Valid organism name detected: %s ", organism)
+
+  annotation_name <- paste0(organism, '_annotation')
+  cdna_name <- paste0(organism, '_cdna')
+  mapper_name <- paste0(organism, '_id_mapper')
+
+  url <- 'https://raw.githubusercontent.com/goodarzilab/Ribolog/master/data/'
+
+  print('Downloading the cDNA Fasta file and Annotation.')
+
+  download.file(paste0(url, annotation_name, '.rda'), paste0(annotation_name, '.rda'))
+  download.file(paste0(url, cdna_name, '.rda'), paste0(cdna_name, '.rda'))
+  download.file(paste0(url, mapper_name, '.rda'), paste0(mapper_name, '.rda'))
+
+  print('Download complete. Now loading the files.')
+
+  load(paste0(annotation_name, '.rda'))
+  load(paste0(cdna_name, '.rda'))
+  load(paste0(mapper_name, '.rda'))
+
+  print('Evaluating the loaded files.')
+
+  annotation <- eval(as.symbol(annotation_name))
+  cdna_fasta <- eval(as.symbol(cdna_name))
+  mapper <- eval(as.symbol(mapper_name))
+
+  print("Processing complete. Use output[['annotation']] to get the annotation or output[['cdna_fasta']] to get the cdna fasta file.")
+
+  output <- {}
+  output[['annotation']] <- annotation
+  output[['cdna_fasta']] <- cdna_fasta
+  output[['mapper']] <- mapper
+
+  return(output)
+}
+
+
 
 #' @title bamtolist_rW
 #' @description Function to convert bam files and an annotation file to a reads_list object.
@@ -941,7 +989,7 @@ metaprofile_psite_rW <- function(reads_psite_list, annotation, sample, scale_fac
 #' @examples
 #' print_rop(LMCN_reads_psite_list, annotation_human_cDNA, "<file.path>/LMCN_RPF_ribosome_occupancy_profiles.pdf")
 #' @export
-print_rop <- function(reads_psite_list, annotation, outfile='ribosome_occupancy_profiles.pdf'){
+print_rop <- function(reads_psite_list, annotation, outfile=NULL){
 
   if ( !is.null(outfile) ) { pdf(outfile, width=20, height=10) }
 
@@ -1320,7 +1368,7 @@ frame_psite_length_rW <- function (reads_psite_list, sample = NULL, transcripts 
 #' @examples
 #' print_period_region_length(reads_psite_list, "<file.path>/Periodicity_by_length_region2.pdf")
 #' @export
-print_period_region_length <- function(reads_psite_list, outfile='periodicity_by_length_region2.pdf', cl=95){
+print_period_region_length <- function(reads_psite_list, outfile=NULL, cl=95){
   if (!is.null(outfile)) { pdf(outfile, width=20, height=15) }
 
   for (sample_i in names(reads_psite_list)){
@@ -1360,14 +1408,19 @@ psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fas
   annotation.df.m <<- annotation.df.m[,-6]
   transcript_l3k <- as.character(annotation.df.m$transcript)
 
+  if (is.character(fasta.file) && length(fasta.file) == 1) {
+    fasta.parsed.t <- seqinr::read.fasta(file=fasta.file, seqtype="DNA", forceDNAtolower = FALSE)
+  } else {
+    fasta.parsed.t <- fasta.file
+  }
+
   # Function to create a list of data farmes, one for each transcript:
   # list$<transcript> [1] codon_number [2] codon_type [3] aa_type
   # Input: annotation data frame with transcript IDs and length of CDS and UTRs, reference fasta file and the genetic code
   # GENETIC_CODE comes from the Biostrings package.
-  list_transcript_codons <- function(annotation, fasta.file, genetic.code){
+  list_transcript_codons <- function(annotation, fasta.parsed.t, genetic.code){
     tr_codons_list <- list()
     #parse the fasta file into a list, each element named after a transcript, content is a vector of seq letters.
-    fasta.parsed.t <- seqinr::read.fasta(file=fasta.file, seqtype="DNA", forceDNAtolower = FALSE)
     # Filter the list for those transcripts in the annotation
     accepted.transcripts <- as.character(annotation$transcript)
     fasta.parsed.t <- fasta.parsed.t[accepted.transcripts]
@@ -1390,7 +1443,7 @@ psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fas
   }
 
   tr_codons_aas <- list_transcript_codons(annotation = annotation.df.m,
-                                          fasta.file = fasta.file,
+                                          fasta.parsed.t = fasta.parsed.t,
                                           genetic.code = GENETIC_CODE)
   # Add a codon number column.
   calculate_codon_number <- function(sample_df){
