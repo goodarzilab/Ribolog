@@ -56,7 +56,7 @@ load_annotation_and_cdna <- function(organism){
     stop(sprintf("Error. Ribolog has the preloaded annotation of only the following organisms: ( %s ) ", organism_list))
   }
 
-  sprintf("Valid organism name detected: %s ", organism)
+  print(paste0("Valid organism name detected: ", organism))
 
   annotation_name <- paste0(organism, '_annotation')
   cdna_name <- paste0(organism, '_cdna')
@@ -1392,12 +1392,12 @@ print_period_region_length <- function(reads_psite_list, outfile=NULL, cl=95){
 #' @param annotation Annotation data table produced by \code{\link{read_annotation}} listing transcript names and lengths of their 5'UTR, CDS and 3'UTR segments.
 #' It has five columns: transcript, l_tr, l_utr5, l_cds and l_utr3.
 #' Transcript names and segment lengths must correspond to the reference sequences to which the reads were mapped.
-#' @param fasta.file The reference fasta file to which reads were mapped.
+#' @param fasta_file The reference fasta file to which reads were mapped.
 #' @examples
 #' tr_codon_read_count_LMCN <- psite_to_codon_count(reads_psite_list_LMCN, c(24:32), annotation_human_cDNA, "<file.path>/Human.GRC38.96_cDNA_longest_CDS.txt")
 #' @return A list of lists with the following structure: list$<sample.name>$<transcript.ID> data.frame: [1] codon_number [2] codon_type [3] aa_type [4] observed_count
 #' @export
-psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fasta.file){
+psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fasta_file){
   # Filter reads_psite_list to keep reads within the specified length range and mapping to CDS
   reads_psite_list.m <- lapply(reads_psite_list, function(x) subset(x, psite_region == "cds" & length %in% length_range))
 
@@ -1408,17 +1408,17 @@ psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fas
   annotation.df.m <<- annotation.df.m[,-6]
   transcript_l3k <- as.character(annotation.df.m$transcript)
 
-  if (is.character(fasta.file) && length(fasta.file) == 1) {
-    fasta.parsed.t <- seqinr::read.fasta(file=fasta.file, seqtype="DNA", forceDNAtolower = FALSE)
+  if (is.character(fasta_file) && length(fasta_file) == 1) {
+    fasta.parsed.t <- seqinr::read.fasta(file=fasta_file, seqtype="DNA", forceDNAtolower = FALSE)
   } else {
-    fasta.parsed.t <- fasta.file
+    fasta.parsed.t <- fasta_file
   }
 
   # Function to create a list of data farmes, one for each transcript:
   # list$<transcript> [1] codon_number [2] codon_type [3] aa_type
   # Input: annotation data frame with transcript IDs and length of CDS and UTRs, reference fasta file and the genetic code
   # GENETIC_CODE comes from the Biostrings package.
-  list_transcript_codons <- function(annotation, fasta.parsed.t, genetic.code){
+  list_transcript_codons <- function(annotation, fasta.parsed.t, genetic_code){
     tr_codons_list <- list()
     #parse the fasta file into a list, each element named after a transcript, content is a vector of seq letters.
     # Filter the list for those transcripts in the annotation
@@ -1444,7 +1444,7 @@ psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fas
 
   tr_codons_aas <- list_transcript_codons(annotation = annotation.df.m,
                                           fasta.parsed.t = fasta.parsed.t,
-                                          genetic.code = GENETIC_CODE)
+                                          genetic_code = Biostrings::GENETIC_CODE)
   # Add a codon number column.
   calculate_codon_number <- function(sample_df){
     sample_df$codon_number <- (sample_df$psite_from_start %/% 3) + 1

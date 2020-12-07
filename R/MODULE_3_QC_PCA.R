@@ -231,7 +231,7 @@ TER_all_pairs <- function(x, design, outcome = "read_type", uniqueID, groupID){
       list_ij[["groupIDs"]] <- sort(c(as.character(x[[i]][, groupID][1]), as.character(x[[j]][, groupID][1])))
       if (identical(list_ij[["groupIDs"]][1], list_ij[["groupIDs"]][2])) list_ij[["pair_type"]] = "homo" else list_ij[["pair_type"]] = "hetero"
 
-      model1 <- as.formula(paste(outcome, uniqueID, sep = "~"))
+      model1 <- as.formula(paste(as.factor(outcome), as.factor(uniqueID), sep = "~"))
       data_ij <- rbind(x[[i]], x[[j]])[, -c(1:n_design_cols)]
       design_ij <- rbind(x[[i]], x[[j]])[, c(1:n_design_cols)]
       list_ij[["fit"]] <- Ribolog::logit_seq(t(data_ij), design_ij, model1, long_output = TRUE)
