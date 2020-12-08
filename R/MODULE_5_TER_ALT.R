@@ -17,6 +17,7 @@
 #' @import rlist
 #' @import gdata
 #' @import nlme
+#' @import EnhancedVolcano
 
 
 

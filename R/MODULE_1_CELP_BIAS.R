@@ -17,6 +17,7 @@
 #' @import rlist
 #' @import gdata
 #' @import nlme
+#' @import EnhancedVolcano
 
 ## Possible problems: robustbase, nortest
 ## Being used: matrixStats
@@ -1431,7 +1432,7 @@ psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fas
       cds.end.i <- annotation.df.m[i,3] + annotation.df.m[i,4]
       cds.bases.i <- fasta.parsed.t[i][[1]][cds.start.i:cds.end.i]
       codon_type <- paste0(cds.bases.i[c(TRUE, FALSE, FALSE)], cds.bases.i[c(FALSE, TRUE, FALSE)], cds.bases.i[c(FALSE, FALSE, TRUE)])
-      aa_type <- genetic.code[codon_type]
+      aa_type <- genetic_code[codon_type]
       aa_type <- replace(aa_type, aa_type=='*', 'X')
       names(aa_type) <- NULL
       codon_number <- c(1:length(codon_type))
@@ -1461,7 +1462,7 @@ psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fas
     row.names(df.temp) <- NULL
     return(df.temp)
   }
-  tr_codon_read_count <- lapply(reads_psite_list.m, function(x) x %>% dplyr::count(transcript, codon_number))
+  tr_codon_read_count <- lapply(reads_psite_list.m, function(x) x %>% count(transcript, codon_number))
   tr_codon_read_count.s <- lapply(tr_codon_read_count, function(x) split(x, x$transcript))
   tr_codon_read_count.s2 <- lapply(tr_codon_read_count.s, function(x) lapply(x, trim_tr_read_df))
 
