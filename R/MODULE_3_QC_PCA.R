@@ -206,6 +206,9 @@ partition_to_uniques <- function(x, design, uniqueID){
 #' @param groupID A variable (column) of the design matrix indicating which replicates should be grouped together.
 #' All experimental units having the same \code{groupID} will be considered replicates of the same biological sample
 #' (or members of the same group of samples).
+#' @param adj_method P-value adjustment method.
+#' Options: "qvalue", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".
+#' "qvalue" calls the \emph{qvalue} package. Other methods are from base R.
 #' @return
 #' A list of lists containig the results of all pairwise TER tests. If there are n samples in the input list, the output list will consist of C(n,2) elements.
 #' Each element of the list is in turn a list with four attributes:
@@ -216,7 +219,7 @@ partition_to_uniques <- function(x, design, uniqueID){
 #' @examples
 #' rr_LMCN.v2.pairwise <- TER_all_pairs(rr_LMCN.v2.split, sample_attributes_LMCN, "read_type", "replicate_name", "cell_line")
 #' @export
-TER_all_pairs <- function(x, design, outcome = "read_type", uniqueID, groupID){
+TER_all_pairs <- function(x, design, outcome = "read_type", uniqueID, groupID, adj_method){
   pair_results <- list()
   n <- length(x)
   n_design_cols <- dim(design)[2]
@@ -232,7 +235,7 @@ TER_all_pairs <- function(x, design, outcome = "read_type", uniqueID, groupID){
       model1 <- as.formula(paste(as.factor(outcome), as.factor(uniqueID), sep = "~"))
       data_ij <- rbind(x[[i]], x[[j]])[, -c(1:n_design_cols)]
       design_ij <- rbind(x[[i]], x[[j]])[, c(1:n_design_cols)]
-      list_ij[["fit"]] <- Ribolog::logit_seq(t(data_ij), design_ij, model1, long_output = TRUE)
+      list_ij[["fit"]] <- Ribolog::logit_seq(t(data_ij), design_ij, model1, adj_method=adj_method, long_output = TRUE)
       name_ij <- paste(list_ij[["uniqueIDs"]], collapse = "_vs_")
       pair_results[[name_ij]] <- list_ij
 
