@@ -9,7 +9,6 @@
 #' @import matrixStats
 #' @import sm
 #' @import corrplot
-#' @import mvmeta
 #' @import DescTools
 #' @import GenomicAlignments
 #' @import rlists
