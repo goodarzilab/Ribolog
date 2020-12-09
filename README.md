@@ -54,9 +54,8 @@ xcode-select --install
 <b> Step 2:</b>  Run the following commands in R:
 
 ```R
-install.packages(c('devtools', 'BiocManager'))
-BiocManager::install(c("GenomicAlignments", "qvalue"))
-devtools::install_github("Goodarzilab/Ribolog", dependencies = TRUE, build_vignettes = FALSE, build_manual = FALSE)
+install.packages('BiocManager')
+BiocManager::install("Goodarzilab/Ribolog")
 ```
 
 ### Install Ribolog with a Conda Environment
@@ -65,7 +64,7 @@ Run the code below in your terminal to build and activate a conda environment wi
 ```sh
 conda env create -f 'https://raw.githubusercontent.com/goodarzilab/Ribolog/master/environment.yml'
 conda activate Ribolog # Now you're inside the conda environment
-R -e "devtools::install_github('Goodarzilab/Ribolog', dependencies = FALSE)"
+R -e "BiocManager::install('Goodarzilab/Ribolog', dependencies = FALSE)"
 ```
 
 Rendering the vignettes during installation requires bam files that are not uploaded onto this repository. The knitted .pdf file should be downloaded directly from the vignettes folder instead.
