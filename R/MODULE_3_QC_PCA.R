@@ -6,10 +6,8 @@
 #' @import robustbase
 #' @import qvalue
 #' @import nortest
-#' @import fitdistrplus
 #' @import matrixStats
 #' @import sm
-#' @import epiR
 #' @import corrplot
 #' @import mvmeta
 #' @import DescTools

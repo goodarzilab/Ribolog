@@ -6,10 +6,8 @@
 #' @import robustbase
 #' @import qvalue
 #' @import nortest
-#' @import fitdistrplus
 #' @import matrixStats
 #' @import sm
-#' @import epiR
 #' @import corrplot
 #' @import mvmeta
 #' @import DescTools
@@ -140,6 +138,6 @@ pCutoff = 0.001, FCcutoff = 1.5, xlim = c(-5, 5), ylim = c(0, 10)) {
     stop(print(paste('The column', y, 'does not exist in the given dataframe.')))
   }
 
-  return(EnhancedVolcano::EnhancedVolcano(fit, lab = rownames(fit),x , xlab, y, ylab, title, titleLabSize,
-  border, pCutoff, FCcutoff, xlim, ylim))
+  return(EnhancedVolcano::EnhancedVolcano(fit, lab = rownames(fit),x=x, xlab=xlab, y=y, ylab=ylab, title=title,
+  titleLabSize=titleLabSize, border=border, pCutoff=pCutoff, FCcutoff=FCcutoff, xlim=xlim, ylim=ylim))
 }

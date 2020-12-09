@@ -6,10 +6,8 @@
 #' @import robustbase
 #' @import qvalue
 #' @import nortest
-#' @import fitdistrplus
 #' @import matrixStats
 #' @import sm
-#' @import epiR
 #' @import corrplot
 #' @import mvmeta
 #' @import DescTools
@@ -20,7 +18,6 @@
 #' @import EnhancedVolcano
 
 ## Possible problems: robustbase, nortest
-## Being used: matrixStats
 
 #' @title read_annotation
 #' @description Function to create an annotation data table from a txt file.
