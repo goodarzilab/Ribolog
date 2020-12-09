@@ -1,5 +1,6 @@
 Package: Ribolog
 Title: Logistic-regression-based analysis of ribosome profiling data
+Date: 2020-12-09
 Version: 0.0.0.9000
 Authors@R:
     person(given = "Hosseinali",
@@ -21,10 +22,14 @@ Description: Ribolog offers tools to perform a variety of analyses on ribosome p
     any number of samples described by several attributes (covariates) can be compared in a single model.
     The Ribolog workflow is described in great detail in the package vignettes.
     Ribolog is still a work in progress. Other modules are being prepared and will be released in near future.
+URL: https://github.com/goodarzilab/Ribolog
+BugReports: https://github.com/goodarzilab/Ribolog/issues
 License: MIT
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 6.1.1
+Depends:
+    R (>= 3.5.0)
 Imports:
     GenomicAlignments,
     qvalue,

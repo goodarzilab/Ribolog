@@ -31,6 +31,9 @@
 #' @param groupID A variable (column) of the design matrix indicating which replicates should be grouped together.
 #' All experimental units having the same \code{groupID} will be considered replicates of the same biological sample
 #' (or members of the same group of samples).
+#' @param adj_method P-value adjustment method.
+#' Options: "qvalue", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".
+#' "qvalue" calls the \emph{qvalue} package. Other methods are from base R.
 #' @return
 #' A vector of z statistics constituting empirical null.
 #' @details
@@ -41,7 +44,7 @@
 #' @examples
 #' rr_LMCN.v2.enz <- generate_ENZ(x = rr_LMCN.v2.split, design = sample_attributes_LMCN, outcome = "read_type", uniqueID = "replicate_name", groupID = "cell_line")
 #' @export
-generate_ENZ <- function(x, design, outcome = "read_type", uniqueID, groupID){
+generate_ENZ <- function(x, design, outcome = "read_type", uniqueID, groupID, adj_method){
 
   homo_pair_z_vectors <- list()
   n <- length(x)
@@ -58,7 +61,7 @@ generate_ENZ <- function(x, design, outcome = "read_type", uniqueID, groupID){
         model1 <- as.formula(paste(outcome, uniqueID, sep = "~"))
         data_ij <- rbind(x[[i]], x[[j]])[, -c(1:n_design_cols)]
         design_ij <- rbind(x[[i]], x[[j]])[, c(1:n_design_cols)]
-        list_ij[["z"]] <- Ribolog::logit_seq(t(data_ij), design_ij, model1, long_output = TRUE)[,7]
+        list_ij[["z"]] <- Ribolog::logit_seq(t(data_ij), design_ij, model1, adj_method=adj_method, long_output = TRUE)[,7]
         name_ij <- paste(list_ij[["uniqueIDs"]], collapse = "_vs_")
         homo_pair_z_vectors[[name_ij]] <- list_ij
       }
