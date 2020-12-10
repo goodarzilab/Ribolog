@@ -39,3 +39,9 @@ inst/doc
 
 # Data-raw files
 /data-raw/*.*
+
+# Mac files
+
+.DS_Store
+.ipynb_checkpoints
+.ipynb_checkpoints/*.*

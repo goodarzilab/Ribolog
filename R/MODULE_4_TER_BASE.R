@@ -1,26 +1,20 @@
 #' @import data.table
-#' @import ggfortify
 #' @import Biostrings
 #' @import ggplot2
 #' @import ggrepel
 #' @import dplyr
-#' @import plyr
-#' @import cowplot
 #' @import robustbase
 #' @import qvalue
 #' @import nortest
-#' @import fitdistrplus
 #' @import matrixStats
 #' @import sm
-#' @import epiR
 #' @import corrplot
-#' @import mvmeta
 #' @import DescTools
 #' @import GenomicAlignments
-#' @import corrplot
-#' @import rlist
+#' @import rlists
 #' @import gdata
 #' @import nlme
+#' @import EnhancedVolcano
 
 
 
@@ -31,6 +25,9 @@
 #' @param design Design matrix of the experiment describing samples and their attributes.
 #' i-th row in the design matrix corresponds to the i-th column in the input data frame.
 #' @param model Regression equation modeling the odds ratio of RPF/RNA counts against the selected design variables (sample attributes)
+#' @param adj_method P-value adjustment method.
+#' Options: "qvalue", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".
+#' "qvalue" calls the \emph{qvalue} package. Other methods are from base R.
 #' @param feature_list (Optional) A vector containing IDs of genes/transcripts.
 #' Must have the same length as the row number of input data frame.
 #' @return A matrix containing the output of the regression. If long output is requested, four
@@ -59,7 +56,7 @@
 #' fit5_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ cell_line, as.vector(rr_LMCN.v2$transcript))
 #' @export
 
-logit_seq <- function(x, design, model, feature_list=NULL, long_output = FALSE){
+logit_seq <- function(x, design, model, adj_method, feature_list=NULL, long_output = TRUE){
   logit_seq_gene <- function(m){
     prep <- data.frame(design,m)
     fit <- suppressWarnings(glm(model, data=prep, family="binomial"(link="logit"), weights = m))
@@ -73,6 +70,11 @@ logit_seq <- function(x, design, model, feature_list=NULL, long_output = FALSE){
 
   colnames(logit_x) <- apply(expand.grid(colnames(sfit1$coefficients), rownames(sfit1$coefficients)), 1, paste, collapse="_")
   rownames(logit_x) <- feature_list
+
+  if (adj_method != 'none'){
+    logit_x <- Ribolog::adj_TER_p(logit_x, pcols = c(4, 8), adj_method)
+  }
+
   if (long_output == FALSE){
     logit_x <- logit_x[,c(TRUE, FALSE, FALSE, TRUE)]
   }
@@ -109,4 +111,32 @@ adj_TER_p <- function(x, pcols, adj_method){
   z <- data.frame(x,y)
   colnames(z)[(NCOL(x)+1) : NCOL(z)] <- newnames
   return(z)
+}
+
+#' @title volcano_plot
+#' @description Function to make the volcano plot from the p-values matrix
+#' @param fit Output object of a logit_seq function
+#' Options: "qvalue", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".
+#' "qvalue" calls the \emph{qvalue} package. Other methods are from base R.
+#' @return A volcano plot visualisation
+#' @details A visualisation of the volcano plot resulting from the p-values and log fold change
+#' @examples
+#' vplot <- volcano_plot(fit1)
+#' @export
+
+volcano_plot <- function(fit, x = "Estimate_lung_metastasisY",
+xlab = "Ln fold change", y = "fdr_Pr(>|z|)_lung_metastasisY", ylab = "-Log10 FDR",
+title = "LMCN data, metastatic vs non-metastatic", titleLabSize = 12, border = "full",
+pCutoff = 0.001, FCcutoff = 1.5, xlim = c(-5, 5), ylim = c(0, 10)) {
+
+  if (! x %in% names(fit)){
+    stop(print(paste('The column', x, 'does not exist in the given dataframe.')))
+  }
+
+  if (! y %in% names(fit)){
+    stop(print(paste('The column', y, 'does not exist in the given dataframe.')))
+  }
+
+  return(EnhancedVolcano::EnhancedVolcano(fit, lab = rownames(fit),x=x, xlab=xlab, y=y, ylab=ylab, title=title,
+  titleLabSize=titleLabSize, border=border, pCutoff=pCutoff, FCcutoff=FCcutoff, xlim=xlim, ylim=ylim))
 }

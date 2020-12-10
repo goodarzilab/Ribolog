@@ -1,0 +1,26 @@
+name: ribolog
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.8
+  - bioconductor-GenomicAlignments
+  - bioconductor-qvalue
+  - bioconductor-EnhancedVolcano
+  - r-devtools
+  - r-data.table
+  - r-ggplot2
+  - r-ggrepel
+  - r-dplyr
+  - r-cowplot
+  - r-robustbase
+  - r-nortest
+  - r-matrixStats
+  - r-sm
+  - r-corrplot
+  - r-DescTools
+  - r-seqinr
+  - r-rlist
+  - r-gdata
+  - r-nlme

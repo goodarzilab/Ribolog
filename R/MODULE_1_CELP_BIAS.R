@@ -1,28 +1,22 @@
 #' @import data.table
-#' @import ggfortify
 #' @import Biostrings
 #' @import ggplot2
 #' @import ggrepel
 #' @import dplyr
-#' @import plyr
-#' @import cowplot
 #' @import robustbase
 #' @import qvalue
 #' @import nortest
-#' @import fitdistrplus
 #' @import matrixStats
 #' @import sm
-#' @import epiR
 #' @import corrplot
-#' @import mvmeta
 #' @import DescTools
 #' @import GenomicAlignments
-#' @import corrplot
 #' @import rlist
 #' @import gdata
 #' @import nlme
+#' @import EnhancedVolcano
 
-
+## Possible problems: robustbase, nortest
 
 #' @title read_annotation
 #' @description Function to create an annotation data table from a txt file.
@@ -45,6 +39,54 @@
 read_annotation <- function(annotation_file){
   annotation <- as.data.table(read.table(annotation_file, header = TRUE))
   return(annotation)
+}
+
+
+#' @title load_annotation_and_cdna
+#' @description Function to load pre-existing annotation data table and cDNA fasta file
+#' @param organism Specify one of the organisms that you'd like to query
+#' @export
+load_annotation_and_cdna <- function(organism){
+
+  organism_list <- c('arabidopsis', 'fly', 'human', 'maize', 'mouse', 'rat', 'worm', 'yeast', 'zebrafish')
+  if (! organism %in% organism_list){
+    stop(sprintf("Error. Ribolog has the preloaded annotation of only the following organisms: ( %s ) ", organism_list))
+  }
+
+  print(paste0("Valid organism name detected: ", organism))
+
+  annotation_name <- paste0(organism, '_annotation')
+  cdna_name <- paste0(organism, '_cdna')
+  mapper_name <- paste0(organism, '_id_mapper')
+
+  url <- 'https://raw.githubusercontent.com/goodarzilab/Ribolog/master/data/'
+
+  print('Downloading the cDNA Fasta file and Annotation.')
+
+  download.file(paste0(url, annotation_name, '.rda'), paste0(annotation_name, '.rda'))
+  download.file(paste0(url, cdna_name, '.rda'), paste0(cdna_name, '.rda'))
+  download.file(paste0(url, mapper_name, '.rda'), paste0(mapper_name, '.rda'))
+
+  print('Download complete. Now loading the files.')
+
+  load(paste0(annotation_name, '.rda'))
+  load(paste0(cdna_name, '.rda'))
+  load(paste0(mapper_name, '.rda'))
+
+  print('Evaluating the loaded files.')
+
+  annotation <- eval(as.symbol(annotation_name))
+  cdna_fasta <- eval(as.symbol(cdna_name))
+  mapper <- eval(as.symbol(mapper_name))
+
+  print("Processing complete. Use output[['annotation']] to get the annotation or output[['cdna_fasta']] to get the cdna fasta file.")
+
+  output <- {}
+  output[['annotation']] <- annotation
+  output[['cdna_fasta']] <- cdna_fasta
+  output[['mapper']] <- mapper
+
+  return(output)
 }
 
 
@@ -214,13 +256,19 @@ rlength_distr_rW <- function(reads_list, sample, transcripts = NULL, cl = 99){
 #' @examples
 #' print_read_ldist(reads_list_LMCN, "<file.path>/LMCN_RPF_Read_length_distributions.pdf")
 #' @export
-print_read_ldist <- function(reads_list, outfile, cl=99){
-  pdf(outfile)
+print_read_ldist <- function(reads_list, outfile=NULL, cl=99){
+
+  if (!is.null(outfile)) { pdf(outfile)}
+
   for (sample_i in names(reads_list)){
     length_dist_zoom <- rlength_distr_rW(reads_list, sample=sample_i, cl=cl)
     print(length_dist_zoom[["plot"]])
   }
-  dev.off()
+
+  if (!is.null(outfile)) {
+    dev.off()
+    sprintf("PDF (%s) created and saved", outfile)
+  }
 }
 
 
@@ -258,7 +306,7 @@ rends_heat_rW <- function(reads_list, annotation, sample, transcripts = NULL, cl
     c_transcripts <- l_transcripts
   }
   else {
-    c_transcripts <- intersect(l_transcripts, transcripts)
+    c_transcripts <- Biostrings::intersect(l_transcripts, transcripts)
   }
   dt <- temp_dt[transcript %in% c_transcripts]
   temp_dt[, `:=`(c("start_dist_end5", "stop_dist_end5", "start_dist_end3",
@@ -342,14 +390,21 @@ rends_heat_rW <- function(reads_list, annotation, sample, transcripts = NULL, cl
 #' @examples
 #' print_read_end_heatmap(reads_list_LMCN, annotation_human_cDNA, "<file.path>/LMCN_RPF_read_end_heatmaps.pdf")
 #' @export
-print_read_end_heatmap <- function(reads_list, annotation, outfile, cl=85, utr5l = 50, cdsl = 50, utr3l = 50){
-  pdf(outfile, width=20, height=10)
+print_read_end_heatmap <- function(reads_list, annotation, outfile=NULL,
+                               cl=85, utr5l = 50, cdsl = 50, utr3l = 50){
+
+  if (!is.null(outfile)) {pdf(outfile, width=20, height=10)}
+
   for (sample_i in names(reads_list)){
     ends_heatmap_i <- rends_heat_rW(reads_list, annotation, sample=sample_i,
                                     cl=cl, utr5l = utr5l, cdsl = cdsl, utr3l = utr3l)
     print(ends_heatmap_i[["plot"]])
   }
-  dev.off()
+
+  if (!is.null(outfile)) {
+    dev.off()
+    sprintf("PDF (%s) created and saved", outfile)
+  }
 }
 
 
@@ -810,7 +865,7 @@ metaprofile_psite_rW <- function(reads_psite_list, annotation, sample, scale_fac
     ntr <- length(c_transcripts)
   }
   else {
-    c_transcripts <- intersect(l_transcripts, transcripts)
+    c_transcripts <- Biostrings::intersect(l_transcripts, transcripts)
     ntr <- length(transcripts)
   }
   length_temp <- vector()
@@ -849,7 +904,7 @@ metaprofile_psite_rW <- function(reads_psite_list, annotation, sample, scale_fac
     length_temp <- unique(c(length_temp, data[[samp]]$length))
   }
   if (!identical(length_range, "all")) {
-    length_range <- sort(intersect(length_temp, length_range))
+    length_range <- sort(Biostrings::intersect(length_temp, length_range))
   }
   else {
     length_range <- sort(length_temp)
@@ -931,16 +986,22 @@ metaprofile_psite_rW <- function(reads_psite_list, annotation, sample, scale_fac
 #' @examples
 #' print_rop(LMCN_reads_psite_list, annotation_human_cDNA, "<file.path>/LMCN_RPF_ribosome_occupancy_profiles.pdf")
 #' @export
-print_rop <- function(reads_psite_list, annotation, outfile){
-  pdf(outfile, width=20, height=10)
-  for (sample_i in names(reads_psite_list)){
+print_rop <- function(reads_psite_list, annotation, outfile=NULL){
+
+  if ( !is.null(outfile) ) { pdf(outfile, width=20, height=10) }
+
+  for (sample_i in names(reads_psite_list)) {
     metaprofile_psite_sample_i <- metaprofile_psite_rW(reads_psite_list, annotation, sample = sample_i, plot_title = sample_i)
     print(metaprofile_psite_sample_i[["plot"]])
   }
-  dev.off()
+
+  if ( !is.null(outfile) ) {
+    dev.off()
+    sprintf("PDF (%s) created and saved", outfile)
+  }
 }
 
-
+### This function below is not being used directly in the vignette
 
 #' @title frame_psite_rW
 #' @description Function to plot the percentage of psites falling into each of the three reading frames (periodicity)
@@ -953,7 +1014,7 @@ print_rop <- function(reads_psite_list, annotation, outfile){
 #' @details This function produces bar plots of the percentage of psites falling into each of the three possible reading frames,
 #' separately for 5' UTR, CDS and 3' UTR regions. In a good dataset, psites in CDS should be enriched for frame 1.
 #' @examples
-#' frame_psite_rW(reads_psite_list_LMCN, "CN34_r2_rpf")
+#' frame_psites <- frame_psite_rW(reads_psite_list_LMCN, "CN34_r2_rpf")
 #' @export
 frame_psite_rW <- function (reads_psite_list, sample = NULL, transcripts = NULL, region = "all",
                             length_range = "all", plot_title = NULL){
@@ -1030,7 +1091,7 @@ frame_psite_rW <- function (reads_psite_list, sample = NULL, transcripts = NULL,
     length_temp <- unique(c(length_temp, data[[samp]]$length))
   }
   if (!identical(length_range, "all")) {
-    length_range <- sort(intersect(length_range, length_temp))
+    length_range <- sort(Biostrings::intersect(length_range, length_temp))
   }
   else {
     length_range <- sort(length_temp)
@@ -1118,13 +1179,19 @@ frame_psite_rW <- function (reads_psite_list, sample = NULL, transcripts = NULL,
 #' @examples
 #' print_period_region(reads_psite_list_LMCN, "<file.path>/LMCN_Periodicity_by_region.pdf")
 #' @export
-print_period_region <- function(reads_psite_list, outfile){
-  pdf(outfile)
+print_period_region <- function(reads_psite_list, outfile=NULL){
+
+  if (!is.null(outfile)) { pdf(outfile) }
+
   for (sample_i in names(reads_psite_list)){
     frames_i <- frame_psite_rW(reads_psite_list, sample=sample_i, region="all")
     print(frames_i[["plot"]])
   }
-  dev.off()
+
+  if (!is.null(outfile)) {
+    dev.off()
+    sprintf("PDF (%s) created and saved", outfile)
+  }
 }
 
 
@@ -1140,7 +1207,7 @@ print_period_region <- function(reads_psite_list, outfile){
 #' @param cl An integer in [1,100] specifying a confidence level to restrict the plot to a sub-range of read lengths.
 #' Use this argument to avoid printing out uncommon read lengths. Default:95.
 #' @examples
-#' print_period_region_length(reads_psite_list_LMCN, "<file.path>/LMCN_Periodicity_by_length_region.pdf")
+#' frame_psite_length_rW(reads_psite_list, sample=sample_i, region="all", cl=cl)
 #' @export
 
 frame_psite_length_rW <- function (reads_psite_list, sample = NULL, transcripts = NULL, region = "all",
@@ -1298,13 +1365,18 @@ frame_psite_length_rW <- function (reads_psite_list, sample = NULL, transcripts 
 #' @examples
 #' print_period_region_length(reads_psite_list, "<file.path>/Periodicity_by_length_region2.pdf")
 #' @export
-print_period_region_length <- function(reads_psite_list, outfile, cl=95){
-  pdf(outfile, width=20, height=15)
+print_period_region_length <- function(reads_psite_list, outfile=NULL, cl=95){
+  if (!is.null(outfile)) { pdf(outfile, width=20, height=15) }
+
   for (sample_i in names(reads_psite_list)){
     frames_stratified_i <- frame_psite_length_rW(reads_psite_list, sample=sample_i, region="all", cl=cl)
     print(frames_stratified_i[["plot"]])
   }
-  dev.off()
+
+  if (!is.null(outfile)) {
+    dev.off()
+    sprintf("PDF (%s) created and saved", outfile)
+  }
 }
 
 
@@ -1317,12 +1389,12 @@ print_period_region_length <- function(reads_psite_list, outfile, cl=95){
 #' @param annotation Annotation data table produced by \code{\link{read_annotation}} listing transcript names and lengths of their 5'UTR, CDS and 3'UTR segments.
 #' It has five columns: transcript, l_tr, l_utr5, l_cds and l_utr3.
 #' Transcript names and segment lengths must correspond to the reference sequences to which the reads were mapped.
-#' @param fasta.file The reference fasta file to which reads were mapped.
+#' @param fasta_file The reference fasta file to which reads were mapped.
 #' @examples
 #' tr_codon_read_count_LMCN <- psite_to_codon_count(reads_psite_list_LMCN, c(24:32), annotation_human_cDNA, "<file.path>/Human.GRC38.96_cDNA_longest_CDS.txt")
 #' @return A list of lists with the following structure: list$<sample.name>$<transcript.ID> data.frame: [1] codon_number [2] codon_type [3] aa_type [4] observed_count
 #' @export
-psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fasta.file){
+psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fasta_file){
   # Filter reads_psite_list to keep reads within the specified length range and mapping to CDS
   reads_psite_list.m <- lapply(reads_psite_list, function(x) subset(x, psite_region == "cds" & length %in% length_range))
 
@@ -1333,14 +1405,19 @@ psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fas
   annotation.df.m <<- annotation.df.m[,-6]
   transcript_l3k <- as.character(annotation.df.m$transcript)
 
+  if (is.character(fasta_file) && length(fasta_file) == 1) {
+    fasta.parsed.t <- seqinr::read.fasta(file=fasta_file, seqtype="DNA", forceDNAtolower = FALSE)
+  } else {
+    fasta.parsed.t <- fasta_file
+  }
+
   # Function to create a list of data farmes, one for each transcript:
   # list$<transcript> [1] codon_number [2] codon_type [3] aa_type
   # Input: annotation data frame with transcript IDs and length of CDS and UTRs, reference fasta file and the genetic code
   # GENETIC_CODE comes from the Biostrings package.
-  list_transcript_codons <- function(annotation, fasta.file, genetic.code){
+  list_transcript_codons <- function(annotation, fasta.parsed.t, genetic_code){
     tr_codons_list <- list()
     #parse the fasta file into a list, each element named after a transcript, content is a vector of seq letters.
-    fasta.parsed.t <- seqinr::read.fasta(file=fasta.file, seqtype="DNA", forceDNAtolower = FALSE)
     # Filter the list for those transcripts in the annotation
     accepted.transcripts <- as.character(annotation$transcript)
     fasta.parsed.t <- fasta.parsed.t[accepted.transcripts]
@@ -1351,7 +1428,7 @@ psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fas
       cds.end.i <- annotation.df.m[i,3] + annotation.df.m[i,4]
       cds.bases.i <- fasta.parsed.t[i][[1]][cds.start.i:cds.end.i]
       codon_type <- paste0(cds.bases.i[c(TRUE, FALSE, FALSE)], cds.bases.i[c(FALSE, TRUE, FALSE)], cds.bases.i[c(FALSE, FALSE, TRUE)])
-      aa_type <- genetic.code[codon_type]
+      aa_type <- genetic_code[codon_type]
       aa_type <- replace(aa_type, aa_type=='*', 'X')
       names(aa_type) <- NULL
       codon_number <- c(1:length(codon_type))
@@ -1363,8 +1440,8 @@ psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fas
   }
 
   tr_codons_aas <- list_transcript_codons(annotation = annotation.df.m,
-                                          fasta.file = fasta.file,
-                                          genetic.code = GENETIC_CODE)
+                                          fasta.parsed.t = fasta.parsed.t,
+                                          genetic_code = Biostrings::GENETIC_CODE)
   # Add a codon number column.
   calculate_codon_number <- function(sample_df){
     sample_df$codon_number <- (sample_df$psite_from_start %/% 3) + 1
@@ -1381,7 +1458,7 @@ psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fas
     row.names(df.temp) <- NULL
     return(df.temp)
   }
-  tr_codon_read_count <- lapply(reads_psite_list.m, function(x) plyr::count(x, c("transcript", "codon_number")))
+  tr_codon_read_count <- lapply(reads_psite_list.m, function(x) x %>% count(transcript, codon_number))
   tr_codon_read_count.s <- lapply(tr_codon_read_count, function(x) split(x, x$transcript))
   tr_codon_read_count.s2 <- lapply(tr_codon_read_count.s, function(x) lapply(x, trim_tr_read_df))
 
@@ -1564,7 +1641,7 @@ CELP_bias <- function(tr_codon_read_count_list, codon_raduis = 5, loess_method =
 #' rpf_corrected_sum_LMCN <- codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "corrected_count")
 #' @return A data frame where the first column is transcript IDs and the remaining columns contain per transcript read counts for all samples.
 #' @export
-codon2transcript <- function(tr_codon_read_count_loess_corrected_list, count_type){
+codon2transcript <- function(tr_codon_read_count_loess_corrected_list, count_type) {
   count_sum <- as.data.frame(sapply(tr_codon_read_count_loess_corrected_list, function(x) sapply(x, function(y) sum(y[count_type]))))
 
   count_sum$transcript <- rownames(count_sum)
@@ -1620,18 +1697,19 @@ visualize_CELP <- function(tr_codon_read_count_loess_corrected_list, transcript,
   x_tr <- lapply(tr_codon_read_count_loess_corrected_list, function(y) y[[transcript]])
   ylim_up <- max(unlist(lapply(x_tr, function(y) max(y$observed_count))))
   ylim_low <- (-1) * max(unlist(lapply(x_tr, function(y) max(y$corrected_count))))
+
   if (is.null(outfile)){
     par(mfrow = c(panel_rows, panel_cols))
-    for (s in names(x_tr)){
-      plot_mirrors_CELP(x_tr[[s]], ylim_low_i = ylim_low, ylim_up_i = ylim_up, xlim_low_i = from_codon, xlim_up_i = to_codon, s)
-    }
   } else {
     pdf(outfile, height = 10, width = 20)
-    par(mfrow = c(panel_rows, panel_cols))
-    for (s in names(x_tr)){
-      plot_mirrors_CELP(x_tr[[s]], ylim_low_i = ylim_low, ylim_up_i = ylim_up, xlim_low_i = from_codon, xlim_up_i = to_codon, s)
-    }
-    dev.off()
   }
-  return()
+
+  for (s in names(x_tr)) {
+    plot_mirrors_CELP(x_tr[[s]], ylim_low_i = ylim_low, ylim_up_i = ylim_up, xlim_low_i = from_codon, xlim_up_i = to_codon, s)
+  }
+
+  if (!is.null(outfile)) {
+    dev.off()
+    sprintf("PDF (%s) created and saved", outfile)
+  }
 }

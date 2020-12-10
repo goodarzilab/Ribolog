@@ -1,26 +1,20 @@
 #' @import data.table
-#' @import ggfortify
 #' @import Biostrings
 #' @import ggplot2
 #' @import ggrepel
 #' @import dplyr
-#' @import plyr
-#' @import cowplot
 #' @import robustbase
 #' @import qvalue
 #' @import nortest
-#' @import fitdistrplus
 #' @import matrixStats
 #' @import sm
-#' @import epiR
 #' @import corrplot
-#' @import mvmeta
 #' @import DescTools
 #' @import GenomicAlignments
-#' @import corrplot
 #' @import rlist
 #' @import gdata
 #' @import nlme
+#' @import EnhancedVolcano
 
 
 
@@ -51,7 +45,7 @@ bam2count <- function(bamfolder, annotation){
   for (n_i in names){
     filename <- paste(bamfolder, n_i, sep = "/")
     bam_i <- GenomicAlignments::readGAlignments(filename)
-    counts_i <- plyr::count(as.data.frame(bam_i), "seqnames")
+    counts_i <- as.data.frame(bam_i) %>% dplyr::count(seqnames)
     sample_name_i <- unlist(strsplit(n_i, ".bam"))
     names(counts_i) <- c("transcript", sample_name_i)
     counts_list[[sample_name_i]] <- counts_i
@@ -95,30 +89,30 @@ gm_mean = function(x, na.rm=TRUE){
 #' @details The original data columns are retained and normalized columns are added.
 #' Compare with \code{\link{normalize_median_of_ratios2}}.
 #'
-#' Use the \code{data.columns} argument to exclude gene or transcript ID and other metadata columns from the
+#' Use the \code{data_columns} argument to exclude gene or transcript ID and other metadata columns from the
 #' calculations, and, to normalize RNA and RPF counts separately while keeping them in the same data frame.
-#' @param expression.data.frame A data frame containing RNA-seq, ribo-seq or similar data.
+#' @param expression_data_frame A data frame containing RNA-seq, ribo-seq or similar data.
 #' Rows are genes/transcripts and columns are samples.
 #' The data frame may contain additional columns for gene/transcript ID or other metadata.
-#' @param data.columns A vector of numbers specifying the columns to be normalized together.
+#' @param data_columns A vector of numbers specifying the columns to be normalized together.
 #' @return An augmented data frame with all the original columns retained and normalized columns
 #' appended to the end. New columns are named 'norm.<old_column>'.
 #' @examples
 #' rna_observed_normalized_LMCN <- normalize_median_of_ratios_append(rna_rpf_count_LMCN, c(2:9))
 #' @export
-normalize_median_of_ratios_append <- function (expression.data.frame, data.columns){
+normalize_median_of_ratios_append <- function (expression_data_frame, data_columns){
   gm_mean_z <- function(x){
     exp(sum(log(x)) / length(x))
   }
-  edf <- expression.data.frame
-  geo.mean.vec <- apply(edf[,data.columns], 1, function(x) gm_mean_z(x))
-  ratios.df <- edf[,data.columns]/geo.mean.vec
+  edf <- expression_data_frame
+  geo.mean.vec <- apply(edf[,data_columns], 1, function(x) gm_mean_z(x))
+  ratios.df <- edf[,data_columns]/geo.mean.vec
   # Division by 0 gm_mean creates NAs here.
   normalization.factors <- apply(ratios.df, 2, function(x) median(x, na.rm=TRUE))
   # NAs are removed from calculation of median here.
   print("Normalization factors:")
   print(normalization.factors)
-  normalized.edf <- t(t(edf[,data.columns])/normalization.factors)
+  normalized.edf <- t(t(edf[,data_columns])/normalization.factors)
   colnames(normalized.edf) <- paste0("norm.", colnames(normalized.edf))
   combined.df <- data.frame(edf,normalized.edf)
   return(combined.df)
@@ -131,13 +125,13 @@ normalize_median_of_ratios_append <- function (expression.data.frame, data.colum
 #' @details The original columns of non-normalized counts are replaced in situ with normalized counts.
 #' Compare with \code{\link{normalize_median_of_ratios_append}}.
 #'
-#' Use the \code{data.columns} argument to exclude gene or transcript ID and other metadata columns from the
+#' Use the \code{data_columns} argument to exclude gene or transcript ID and other metadata columns from the
 #' calculations, and, to normalize RNA and RPF counts separately while keeping them in the same data frame.
-#' @param expression.data.frame A data frame containing RNA-seq, ribo-seq or similar data.
+#' @param expression_data_frame A data frame containing RNA-seq, ribo-seq or similar data.
 #' Rows are genes/transcripts and columns are samples.
 #' The data frame may contain additional columns for gene/transcript ID or other metadata.
-#' @param data.columns A vector of numbers specifying the columns to be normalized together.
-#' @return A data frame the same size as the input data frame where non-normalized counts in the 'data.columns'
+#' @param data_columns A vector of numbers specifying the columns to be normalized together.
+#' @return A data frame the same size as the input data frame where non-normalized counts in the 'data_columns'
 #' are replaced in situ by normalized counts. Column names are not changed.
 #' @examples
 #' The data set rna_CELP_rpf_count_LMCN contains 17 columns: [1] transcript [2:9] RNA counts [10:17] RPF counts.
@@ -145,21 +139,21 @@ normalize_median_of_ratios_append <- function (expression.data.frame, data.colum
 #' rna_CELP_rpf_count_norm1_LMCN <- Ribolog::normalize_median_of_ratios(rna_CELP_rpf_count_LMCN, c(2:9))
 #' rna_CELP_rpf_count_norm2_LMCN <- Ribolog::normalize_median_of_ratios(rna_CELP_rpf_count_norm1_LMCN, c(10:17))
 #' @export
-normalize_median_of_ratios <- function (expression.data.frame, data.columns){
+normalize_median_of_ratios <- function (expression_data_frame, data_columns){
   gm_mean_z <- function(x){
     exp(sum(log(x)) / length(x))
   }
-  edf <- expression.data.frame
+  edf <- expression_data_frame
   id.names <- names(edf)
-  geo.mean.vec <- apply(edf[,data.columns], 1, function(x) gm_mean_z(x))
-  ratios.df <- edf[,data.columns]/geo.mean.vec
+  geo.mean.vec <- apply(edf[,data_columns], 1, function(x) gm_mean_z(x))
+  ratios.df <- edf[,data_columns]/geo.mean.vec
   # Division by 0 gm_mean will create NAs here.
   normalization.factors <- apply(ratios.df, 2, function(x) median(x, na.rm=TRUE))
   # NAs will be removed from calculation of median here.
   print("Normalization factors:")
   print(normalization.factors)
-  normalized.edf <- t(t(edf[,data.columns])/normalization.factors)
-  edf[, data.columns] <- normalized.edf
+  normalized.edf <- t(t(edf[,data_columns])/normalization.factors)
+  edf[, data_columns] <- normalized.edf
   names(edf) <- id.names
   return(edf)
 }
