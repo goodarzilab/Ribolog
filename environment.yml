@@ -25,3 +25,4 @@ dependencies:
   - r-rlist
   - r-gdata
   - r-nlme
+  - r-fitdistrplus
