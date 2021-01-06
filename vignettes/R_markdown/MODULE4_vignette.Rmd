@@ -1,0 +1,106 @@
+---
+title: "RIBOLOG Module 4: Basic differential translational efficiency test"
+author: "Hosseinali Asgharian"
+date: "Sep. 2019"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{RIBOLOG Module 4: Basic differential translational efficiency test}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+opts_chunk$set(root.dir = "C:/Science/Projects/Ribosome profiling/Ribolog")
+setwd("C:/Science/Projects/Ribosome profiling/Ribolog")
+
+```
+
+This module is the heart of the **Ribolog** package as it contains the differential translational efficiency significance test by the `logit_seq` function. 
+
+# STEP 1: Read in the design matrix 
+
+We have prepared our dataset for the test in previous modules: corrected stalling biases using the CELP method in module 1, combined RNA and RPF counts and normalized for library size variation in module 2, and, removed low count transcripts and confirmed replicate consistency in module 3. The prepared data set looks like this:
+
+Now, we need to read in the design matrix which describes attributes of each sample:
+
+```{r}
+sample_attributes_LMCN <- read.xlsx("./data-raw/sample_attributes_LMCN.xlsx", sheetIndex = 1, header = TRUE)
+print(sample_attributes_LMCN)
+```
+
+*NOTE:* The order of samples in the design matrix MUST be exactly the same as that in the read count data set.
+
+# STEP 2: Run translational efficiency ratio test
+
+Now we are ready to perform the translational efficiency test using the `logit_seq` function. TE is the RPF/RNA ratio. If we are interested in comparing TE between the metastatic and non-metastatic samples, we set the model to *read_type ~ lung_metastasis*. The count data set (argument `x`) must contain only numeric variables, therefore column 1 (transcript) is excluded from x and provided separately as the `feature list` in the end.   
+
+*NOTE:* The input data set should not contain any transcripts where RNA counts are zero in all samples. Translational efficiency $TE=RPF/RNA$ cannot be calculated in such cases and the function will return an error. 
+
+Finally, p-values are corrected for multiple testing. Run ?adj_TER_p to see all the available methods. Two examples are shown below. Each column of p-values is corrected for multiple testing separately.
+
+```{r message = FALSE, warning = FALSE}
+fit1_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis,  feature_list = as.vector(rr_LMCN.v2$transcript), adj_method='fdr') 
+head(fit1_LMCN)
+
+```
+
+
+
+Regression coefficient is the natural log of translational efficiency ratio (TER). For example,  Estimate.lung_metastasisY=0.1210466 (p=0.1013943) for transcript ENST00000000233. This means that:
+
+$$\frac{TE_{Lung\ metastasis='Y'}}{TE_{Lung\ metastasis='N'}}=exp(0.1210466)=1.1286775$$
+
+Regression reports usually include only a regression coefficient (Estimate) and a p-value. Runnig `logit_seq` with the `long_output = TRUE` option will keep SE (standard error) and z in the output to enable certain tasks e.g. generation of correlograms from z scores (module 3, *TEST 3*) and meta analysis (module 5). 
+
+```{r message = FALSE, warning = FALSE}
+fit1_LMCN_long <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis,  feature_list = as.vector(rr_LMCN.v2$transcript), long_output = TRUE, adj_method='fdr) 
+head(fit1_LMCN_long)
+```
+
+Gene IDs and gene names can be obtained by merging the output with the ID mapper data incuded with the package. As gene names are not always unique, we recommend doing this at the very last.
+
+```{r}
+fit1_LMCN_qval$transcript <- row.names(fit1_LMCN_qval)
+fit1_LMCN_qval_names <- merge(Ribolog::human_id_mapper, fit1_LMCN_qval, by = "transcript")
+head(fit1_LMCN_qval_names)
+```
+
+The logistic regression model can have more than one predictor. Suppose that we want to know the relative effects of genetic background (cell line origin) and metastatic state as well as their interaction:
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+fit2_LMCN_qval <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis*cell_line_origin, feature_list = as.vector(rr_LMCN.v2$transcript), adj_method = "qvalue")
+head(fit2_LMCN_qval)
+
+```
+
+Above is the output of the following regression equation solved separately for each transcript:
+
+$$Y = \beta_0 + \beta_1X_1 + \beta_2X_2 + \beta_{12}X_1X_2+ \epsilon  $$ 
+
+Where: 
+
+$$ Y: log(TE) \\\beta_0: intercept \\ X_1: cell\ line\ origin\ (CN34\ and\ LM1a: X_1=0,\ MDA\ and\ LM2: X_1=1) \\X_2: lung\ metastasis\ (CN34\ and\ MDA: X_2=0,\ LM1a\ and\ LM2: X_2=1 ) \\X_1X_2: interaction\ of\ X_1\ and\ X_2 \\\epsilon: error\ term $$
+
+Translational efficiency ratio (TER) between any two cell lines can be easily calculated by replacing the corresponding values of $X_1$ and $X_2$ into the parameterized (solved) regression equation. For example, we can calculate the TER for transcript ENST00000000233 between cell lines LM2 and CN34:
+
+$$ log(\frac{TE_{LM2}}{TE_{CN34}}) = log(TE)_{LM2} - log(TE)_{CN34} = (\beta_0-\beta_0) +\beta_1(1-0)+\beta_2(1-0)+\beta_{12}(1-0)=\\\beta_1+\beta_2+\beta_{12}=0.1079058-0.0680763+0.0201423=0.0599718\\ \frac{TE_{LM2}}{TE_{CN34}}=exp(0.0599718)=1.0618066$$
+
+An important advantage of **Ribolog** is that it can run the TER test using only a single replicate per sample, or a single sample per biological condition. Below, we compare CN34 and LM1a lines using only one replicate from each:
+
+```{r warning = FALSE, message = FALSE}
+fit3_LMCN_qval <- Ribolog::logit_seq(rr_LMCN.v2[,c(2,4,10,12)], sample_attributes_LMCN[c(1,3,9,11),], read_type ~ cell_line, feature_list = as.vector(rr_LMCN.v2$transcript), adj_method = "qvalue") 
+names(fit3_LMCN_qval)
+```
+
+Notice that the only difference between CN34 and LM1a cell lines is metastatic state. Using the data from these two cell lines alone, the models *read_type ~ cell_line* and *read_type ~ lung_metastasis* will produce the same quantitative output. 
+
+We can visualize the results in volcano plots. For example, using the volcano_plot function
+
+
+```{r message = FALSE, warning = FALSE, fig.width = 6, fig.height = 7}
+options(repr.plot.width = 15, repr.plot.height = 10)
+Ribolog::volcano_plot(fit1_FDR)
+```
+

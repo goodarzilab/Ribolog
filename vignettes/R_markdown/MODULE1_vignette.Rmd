@@ -1,0 +1,303 @@
+---
+title: "RIBOLOG Module 1: Detecting and correcting translational stalling biases"
+author: "Hosseinali Asgharian"
+date: "Sep. 2019"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{RIBOLOG Module 1: Detecting and correcting translational stalling biases}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+The **CELP (Consistent Excess of Loess Preds)** method incorporated in **Ribolog** module 1 detects and corrects positional biases in RPF read count due to translational pause (stalling). The analysis of  stalling serves two purposes:
+
+- Understanding the dynamics of translational control 
+- Correcting RPF counts to avoid misconstruing stalling reads as signs of increased translation
+
+To achieve this, we need the following input:
+
+- Reference sequence fasta file
+- bam files from mapping RPF reads to the reference sequence (one file per sample)
+- An annotation file listing names and segment lengths of transcripts in the reference
+
+Because ribosome profiling mostly focuses on protein coding sequences (CDS), we recommend mapping to a reference transcriptome. If a gene-level analysis is desired (not an isoform-level analysis), we suggest choosing one transcript with the longest CDS per gene. Instructions and the python script to produce these file are provided in *STEP 0* below. Codon-level read counts are obtained by finding the most likely three nucleotides that occupied the ribosomal p-site at the time of the experiment. We do this using functions from package [**riboWaltz**]  (https://github.com/LabTranslationalArchitectomics/riboWaltz). Functions borrowed exactly or modified slightly from the **riboWaltz** source code are characterized by the suffix `_rW`.
+
+```{r include = FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+
+```
+
+# STEP 0: Obtain reference transcriptome fasta, generate annotation and ID mapper files
+
+You need a reference file to map reads and generate an annotation file (for annotation file content see section 1.1). For ribosome profiling data, we recommend mapping to cDNA (instead of unprocessed transcriptome or genome) to make future steps of obtaining codon-level information faster, easier and less error-prone. From each gene, we choose one cDNA sequence (the one with the longest CDS). The reason for this choice is that sequencing coverage in most ribosome profiling data sets is not high enough to allow reliable isoform-specific analysis, and molecular biologists are usually interested in interpreting their data at the gene level.  **Ribolog** functions use transcript IDs; however, it is useful to generate an ID mapper file to connect transcript IDs, gene IDs and gene names for downstream exploration and analysis of **Ribolog** output. cDNA fasta (one transcript per gene with the longest CDS), annotation and ID mapper files based on Ensembl genomes downloaded on June 5-8 2019 are included with the **Ribolog** package for the following 9 species:  
+
+- Human *Homo sapiens*
+- Mouse *Mus musculus*
+- Rat *Rattus norvegicus*
+- Zebra fish *Danio rerio*
+- Fruit fly *Drosophila melanogaster*
+- Round worm *Caenorhabditis elegans*
+- Maize *Zea mays*
+- Thale cress *Arabidopsis thaliana*
+- Yeast *Saccharomyces cerevisiae*
+
+The files were generated using the folowing instructions:  
+
+1. Go to the [Ensembl](https://ensembl.org) or [Plant Ensembl](https://plants.ensembl.org) website > Biomart
+2. Choose database: "Ensembl genes 96"
+3. Choose dataset: your species of interest e.g. "Mouse genes (GRCm38.p6)"
+4. Choose Filters. Recommendation: GENE: 
+	Limit to genes (external references)... with CCDS ID(s) Only (if available for the target species)
+	Gene type: protein_coding   
+	Transcript type: protein_coding
+5. Choose Attributes. Recommendation: Sequences; SEQUENCES: cDNA sequences (do not specify any flanks); HEADER INFORMATION: (Important: check the boxes exactly in the order specified below)
+	Gene stable ID
+	Transcript stable ID
+	Gene name
+	CDS start (within cDNA)
+	CDS end (within cDNA)
+	Transcript length (including UTRs and CDS)
+6. Press Results > Check Unique results only > Download to save the fasta file.
+7. (Optional) Download the gtf file from ftp://ftp.ensembl.org/pub/release-96/gtf/
+8. Run the script `Biomart_cDNA_fasta_to_rW_annotation_and_reheadered_longest_CDS_cDNA_fasta.py` with the following arguments: *fasta_in fasta_out* *annotation_out* *ID_mapper_out* *no_x_cds*
+
+The *no_x_cds* argument must be given only if the 3' coordinate of CDS in the fasta header line corresponds to the last aminoacid (exludes the stop codon). This was true for the *Drosophila melanogaster* fasta file downloaded from Ensembl, for instance. 
+
+Examples:
+
+```{r }
+#$ python Biomart_cDNA_fasta_to_rW_annotation_and_reheadered_longest_CDS_cDNA_fasta.py Mouse_GRCm38.p6_cDNA.v1.txt Mouse_GRCm38_cDNA_longest_CDS.txt Mouse_GRCm38_annotation.txt Mouse_GRCm38_ID_mapper.txt 
+
+#$ python Biomart_cDNA_fasta_to_rW_annotation_and_reheadered_longest_CDS_cDNA_fasta.py Fly_BDGP6.22.96_cDNA.v1.txt Fly_BDGP6.22.96_cDNA_longest_CDS.txt Fly_BDGP6.22.96_annotation.txt Fly_BDGP6.22.96_ID_mapper.txt no_x_cds
+
+```
+
+
+# STEP 1: Read input files, calculate p-site offset and visualize periodicity 
+
+## 1.1. Read in the annotation file
+
+Read the annotation from a .txt file into an R data table. The annotation file must have five columns named *transcript*, *l_tr*, *l_utr5*, *l_cds* and *l_utr3*. It lists the names, total lengths and lengths of segment (5' UTR, CDS and 3' UTR) of transcripts in the reference file to which RPF reads were mapped. The output annotation data table will be used by several functions later on. 
+
+```{r setup, include = FALSE}
+opts_chunk$set(root.dir = "C:/Science/Projects/Ribosome profiling/Ribolog")
+opts_knit$set(root.dir = "C:/Science/Projects/Ribosome profiling/Ribolog")
+setwd("C:/Science/Projects/Ribosome profiling/Ribolog")
+```
+
+You can also load the pre-provided annotations although these annotations may not match the reference genome used by you for the alignment of your data. The annotation loaded in Ribolog and the annotation used for alignment must be the same.
+
+```{r warning = FALSE, message = FALSE}
+#annotation_human_cDNA <- Ribolog::read_annotation("./data-raw/Human.GRC38.96_annotation.txt")
+outputs <- Ribolog::load_annotation_and_cdna('human')
+annotation <- outputs[['annotation']]
+cdna_fasta <- outputs[['cdna_fasta']]
+```
+
+
+## 1.2. Create a reads_list object from bam files
+
+Read .bam files into a list of data frames. Each data frame contains reads information from one of the samples. The annotation data table produced by `read_annotation` is required to add CDS coordinates. Our sample dataset (LMCN) consists of 8 samples: four cell lines with two replicates each. Several functions borrowed from **riboWaltz** including `bamtolist_rW` print out progress messages that are suppressed here for brevity.  
+
+*NOTE:* All file and folder names should start with a letter (not a number, for instance) to avoid unexpected problems later. 
+
+```{r message = FALSE, warning = FALSE, results = 'hide'}
+#reads_list_LMCN <- Ribolog::bamtolist_rW(bamfolder = "./data-raw/Bam/RPF", annotation = annotation_human_cDNA)
+reads_list_LMCN <- Ribolog::bamtolist_rW(bamfolder = "C:/Science/Projects/Ribosome profiling/File exchange/Bam/RPF", annotation = annotation_human_cDNA)
+
+```
+
+```{r}
+names(reads_list_LMCN)
+head(reads_list_LMCN$CN34_r1_rpf)
+
+```
+
+
+## 1.3. Calculate p-site offset and create a reads_psite_list object
+
+Run riboWlatz to estimate the most likely ribosomal p-site offsets for each read length group. Combine this information with the *reads_list* object produced by `bamtolist_rW` to create a *reads_psite_list* object. Each data frame in this list corresponds to one sample and contains the distance of the reads p-sites from the start and stop codons. It also shows whether each p-site falls in the 5' UTR, CDs or 3' UTR region. 
+
+```{r message=FALSE, warning=FALSE, results='hide'}
+psite_offset_LMCN <- Ribolog::psite_rW(reads_list_LMCN)
+reads_psite_list_LMCN <- Ribolog::psite_info_rW(reads_list_LMCN, psite_offset_LMCN)
+
+```
+
+```{r}
+head(reads_psite_list_LMCN$CN34_r1_rpf)
+```
+
+
+## 1.4. Plot read length distribution, ribosome occupancy and periodicity and choose appropriate read length range 
+
+The *reads_psite_list* object produced by `psite_info_rW` is the key input used by the **CELP** method. Before proceeding to **CELP** correction, it is recommended to print out some QC plots, browse patterns and decide what read lengths will be included for further analysis. Chosen read lengths must be relatively abundant across samples and show proper periodicity in the CDS region. The code for several useful plot types and two example plots are included here. 
+
+```{r message = FALSE, results='hide', warning=FALSE}
+Ribolog::print_read_ldist(reads_list_LMCN, "./LMCN_RPF_Read_length_distributions.pdf")
+
+Ribolog::print_period_region(reads_psite_list_LMCN, "./Periodicity_by_region.pdf")
+
+Ribolog::print_period_region_length(reads_psite_list_LMCN, "./Periodicity_by_length_region.pdf")
+
+```
+
+```{r message = FALSE, warning = FALSE, echo = FALSE, fig.cap = "Figure 1. Read length distribution and periodicity plot of sample LM2_r2", fig.align = 'center'}
+print(Ribolog::rlength_distr_rW(reads_list_LMCN, "LM2_r2_rpf", cl = 99)[["plot"]])
+print(Ribolog::frame_psite_length_rW(reads_psite_list_LMCN, "LM2_r2_rpf", cl = 95)[["plot"]])
+
+```
+
+Suppose that after inspecting the plots across all samples we decide to move forward with reads in the length range of 24-32.
+
+# STEP 2: Generate codon read counts
+
+The `psite_to_codon_count` function aggregates read p-site data to obtain codon read counts. It  generates a tr_codon_read_count object which is a list of lists with the following structure:
+tr_codon_read_count\$<sample.name>\$<transcript.ID> data.frame: [1] codon_number [2] codon_type [3] aa_type [4] observed_count.
+
+```{r }
+l_range <- c(24:32)
+tr_codon_read_count_LMCN <- Ribolog::psite_to_codon_count(reads_psite_list_LMCN, 
+                                                          length_range = l_range, 
+                                                          annotation, 
+                                                          fasta_file = cdna_fasta) 
+
+# You can also specify the path to an actual cdna_fasta file instead of the preloaded object
+#tr_codon_read_count_LMCN <- Ribolog::psite_to_codon_count(reads_psite_list_LMCN, c(24:32), annotation_human_cDNA,  "./data-raw/Human.GRC38.96_cDNA_longest_CDS.txt")
+head(tr_codon_read_count_LMCN$CN34_r1_rpf$ENST00000000233, n=30)
+```
+
+
+# STEP 3: Run CELP
+
+This is the main step in the **CELP** procedure. The `CELP_bias` function computes codon-level bias coefficients and bias-corrected read counts. 
+
+The procedure starts with running a loess curve on codon read counts along the transcript to borrow information from neighboring codons mitigating the uncertainty of p-site offset assignment and experimental stochasticity. Loess span parameter is calculated from the user-defined *codon_radius* (default=5) and CDS length. Then, bias coefficient is calculated for each codon by integrating information on the excess of loess-predicted read counts at that codon comapred to the transcript's background across samples. Finally, loess predicted count is divided by the bias coefficient to calculate the bias-corrected count. This function can be used in several modes (see function documentation for explanation of arguments). For example, the "direct" fitting method for loess takes longer but does not run into kd-tree-related memory issues. "Gini-moderated" correction ensures that the power of correction is proportional to the original level of heterogenity in read distribution along the transcript. 
+
+Codons with large bias coefficients are those with a consistent excess of reads across samples compared to the transcript background (reproducible peaks). They indicate translational stalling.
+
+The `CELP_bias` function returns a list composed of two lists: [1] bias coefficients, and [2] bias-corrected read counts. The bias coefficient list has the following structure: list\$<transcript.ID> data.frame: [1] codon_number [2] codon_type [3] aa_type [4] bias_coefficient. The bias-corrected read count list has the following structure: list\$<sample.name>\$<transcript.ID> data.frame: [1] codon_number [2] codon_type [3] aa_type [4] observed_count [5] loess_pred [6] loess_pred_by_nz_median [7] bias_coefficient [8] corrected_loess.
+
+You can run CELP_bias with the default arguments:
+
+```{r}
+tr_codon_read_count_LMCN_10tr <- lapply(tr_codon_read_count_LMCN, function(x) x[c(1:10)])
+```
+
+```{r}
+CELP_bias_quiet <- function(tr_codon_read_count_list, codon_raduis = 5, loess_method = "interpolate", gini_moderation = FALSE){
+
+  tr_codon_read_count_loess_corrected <- tr_codon_read_count_list
+  bias_coefficients_list <- list()
+  sample_names_i <- names(tr_codon_read_count_loess_corrected)
+  tr_names_i <- names(tr_codon_read_count_loess_corrected[[1]])
+
+  # Run loess and compute loess predicted values
+  for (t in tr_names_i){
+    l_cds <- dim(tr_codon_read_count_loess_corrected[[1]][[t]])[1]
+    span_tr <- (2*codon_raduis+1)/l_cds
+    for (s in sample_names_i){
+      tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred <-
+        suppressWarnings(predict(loess(tr_codon_read_count_loess_corrected[[s]][[t]]$observed_count ~ tr_codon_read_count_loess_corrected[[s]][[t]]$codon_number, span = span_tr, se = FALSE, control = loess.control(surface = loess_method))))
+      tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred [tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred < 0 ] <- 0
+      tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred_by_nz_median <-
+        tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred / median(tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred[tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred>0])
+    }
+
+    # Calculate position-specific bias coefficients
+    bias_coefficients_list[[t]] <- data.frame(codon_number = tr_codon_read_count_loess_corrected[[1]][[t]]$codon_number,
+                                              codon_type = tr_codon_read_count_loess_corrected[[1]][[t]]$codon_type,
+                                              aa_type = tr_codon_read_count_loess_corrected[[1]][[t]]$aa_type)
+    for (s in sample_names_i){
+      bias_coefficients_list[[t]] <- data.frame(bias_coefficients_list[[t]], tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred_by_nz_median)
+    }
+    names(bias_coefficients_list[[t]]) <- c("codon_number", "codon_type", "aa_type", sample_names_i)
+    bias_coefficient <- apply(bias_coefficients_list[[t]][,-c(1:3)], 1, function(y) gm_mean(y))
+    bias_coefficient_gini <- DescTools::Gini(bias_coefficient)
+    bias_coefficients_list[[t]] <- data.frame(bias_coefficients_list[[t]][,c(1:3)], bias_coefficient)
+
+    # calculate bias-corrected read counts
+    for (s in sample_names_i){
+      tr_codon_read_count_loess_corrected[[s]][[t]]$bias_coefficient <- bias_coefficients_list[[t]]$bias_coefficient
+      if (gini_moderation == TRUE){
+        correction_power <- bias_coefficient_gini
+      } else{
+        correction_power <- 1
+      }
+      tr_codon_read_count_loess_corrected[[s]][[t]]$corrected_count <-
+        tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred / (tr_codon_read_count_loess_corrected[[s]][[t]]$bias_coefficient)^correction_power
+      tr_codon_read_count_loess_corrected[[s]][[t]] <- subset(tr_codon_read_count_loess_corrected[[s]][[t]], select = -c(loess_pred, loess_pred_by_nz_median))
+    }
+  }
+
+  output <- list(bias_coefficients_list = bias_coefficients_list, tr_codon_read_count_loess_corrected = tr_codon_read_count_loess_corrected)
+  return(output)
+}
+
+```
+
+
+
+```{r}
+#tr_codon_bias_coeff_loess_corrected_count_LMCN_10tr <- Ribolog::CELP_bias(tr_codon_read_count_LMCN_10tr)
+tr_codon_bias_coeff_loess_corrected_count_LMCN_10tr <- CELP_bias_quiet(tr_codon_read_count_LMCN_10tr)
+print((tr_codon_bias_coeff_loess_corrected_count_LMCN_10tr$tr_codon_read_count_loess_corrected$CN34_r1_rpf$ENST00000000233)[c(30:49), ])
+
+```
+
+
+```{r message=FALSE, warning=FALSE}
+##, cache = TRUE, cache.lazy = FALSE}
+tr_codon_bias_coeff_loess_corrected_count_LMCN <- Ribolog::CELP_bias(tr_codon_read_count_LMCN)
+print((tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected$CN34_r1_rpf$ENST00000000233)[c(30:49), ])
+```
+
+
+# STEP 4: Visualize translational bias
+
+The function `visualize_CELP` plots codon-level observed (upward black bars) and corrected (downward purple bars) read counts and the bias coefficient (red line) along the transcript. This allows visual inspection of the prominent bias positions and a comparison of read count heterogeneity along the transcript before and after CELP bias correction. If *outfile* is not specified, plots are printed to the standard output (the Files/Plots/Packages/Help panel in Rstudio).
+
+```{r results = 'hide', message = FALSE, warning = FALSE, fig.cap = "Figure 2. CELP bias coefficients (red line), observed read counts (black bars) and CELP-corrected read counts (purple bars) for transcript ENST00000000233 in all the samples in the LMCN dataset.", dpi = 300, fig.align='center'}
+Ribolog::visualize_CELP(tr_codon_bias_coeff_loess_corrected_count_LMCN_10tr$tr_codon_read_count_loess_corrected, transcript = "ENST00000000233", panel_rows = 2, panel_cols = 4)
+
+```
+
+It is possible to choose one or a few particular samples to plot:
+
+```{r results = 'hide', message = FALSE, warning = FALSE, dpi = 300, fig.cap = "Figure 3. CELP bias coefficients (red line), observed read counts (black bars) and CELP-corrected read counts (purple bars) for transcript ENST00000000233 in sample CN34_r1.", dpi = 300, fig.align = 'center'}
+Ribolog::visualize_CELP(tr_codon_bias_coeff_loess_corrected_count_LMCN_10tr$tr_codon_read_count_loess_corrected["CN34_r1_rpf"], transcript = "ENST00000000233", panel_rows = 1, panel_cols = 1)
+
+
+```
+
+Corrected read counts are shown in the downward direction for better visibility but obviously they do not represent negative values. Some codons have zero observed but non-zero corrected counts. This happens as a result of running the `loess` function on codon counts; zero-count codons can have non-zero loess-predicted values if there is a non-zero count codon nearby. 
+
+The range of plotted codons can be controlled to zoom in or avoid overcrowding in the case of long transcripts.  
+
+```{r results = 'hide', message = FALSE, warning = FALSE, dpi = 300, fig.cap = "Figure 4. CELP bias coefficients (red line), observed read counts (black bars) and CELP-corrected read counts (purple bars) for transcript ENST00000367255, codons 3500-3800 in sample CN34_r1.", dpi = 300}
+Ribolog::visualize_CELP(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected["CN34_r1_rpf"], transcript = "ENST00000367255", from_codon = 3500, to_codon = 3800)
+
+```
+
+
+# STEP 5: Generate transcript read counts
+
+Observed or corrected codon read counts are summed up to produce transcript read counts. The analysis of translational efficiency is usually  performed at transcript level.
+
+```{r}
+rpf_observed_sum_LMCN <- Ribolog::codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN_10tr$tr_codon_read_count_loess_corrected, count.type = "observed_count")
+head(rpf_observed_sum_LMCN)
+```
+
+```{r}
+rpf_corrected_sum_LMCN <- Ribolog::codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN_10tr$tr_codon_read_count_loess_corrected, count.type = "corrected_count")
+head(rpf_corrected_sum_LMCN)
+
+```
+
+```{r include = FALSE}
+saveRDS(rpf_corrected_sum_LMCN, "./data/rpf_corrected_sum_LMCN")
+
+```
+

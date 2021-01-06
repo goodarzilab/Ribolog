@@ -15,6 +15,7 @@
 #' @import gdata
 #' @import nlme
 #' @import EnhancedVolcano
+#' @import fitdistrplus
 
 
 
