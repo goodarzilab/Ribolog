@@ -1324,6 +1324,23 @@ codon2transcript <- function(tr_codon_read_count_loess_corrected_list, count_typ
   count_sum <- count_sum[,c(w,1:(w-1))]
   count_sum <- count_sum[order(count_sum$transcript),]
   rownames(count_sum) <- NULL
+
+  total_counts <- as.data.frame(rowSums(count_sum[,-1]) )
+  rownames(total_counts) <- count_sum$transcript
+
+  empty_transcripts <- c()
+
+  for (transcript in count_sum$transcript){
+    if (total_counts[transcript,] == 0) {
+      empty_transcripts <- c(empty_transcripts, transcript)
+    }
+  }
+
+  if (length(empty_transcripts) > 0) {
+    warning(paste('There are',length(empty_transcripts), 'transcripts that have 0 counts across all samples.',
+    'Use Ribolog::min_count_filter to remove them before translational efficiency testing.'))
+  }
+
   return(count_sum)
 }
 

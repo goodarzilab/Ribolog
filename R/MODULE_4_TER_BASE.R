@@ -64,6 +64,38 @@ logit_seq <- function(x, design, model, adj_method, feature_list=NULL, long_outp
     sfit <- summary(fit)
     return(c(t(sfit$coefficients)))
   }
+
+  total_rpf_counts <- as.data.frame(rowSums(x[,design$read_type=='RPF']))
+  total_rna_counts <- as.data.frame(rowSums(x[,design$read_type=='RNA']))
+
+  rownames(total_rpf_counts) <- feature_list
+  rownames(total_rna_counts) <- feature_list
+
+  empty_rpf_transcripts <- c()
+  empty_rna_transcripts <- c()
+
+  for (transcript in rownames(total_rpf_counts)) {
+    if (total_rpf_counts[transcript,] == 0) {
+      empty_rpf_transcripts <- c(empty_rpf_transcripts, transcript)
+    }
+
+    if (total_rna_counts[transcript,] == 0) {
+      empty_rna_transcripts <- c(empty_rna_transcripts, transcript)
+    }
+  }
+
+  if (length(empty_rpf_transcripts) > 0){
+
+    stop(paste0('The following transcripts have 0 counts across all the RPF samples.Please filter your counts matrix using Ribolog::min_count_filter before proceeding. Empty Transcripts:',
+    paste(unlist(empty_rpf_transcripts), collapse=',')))
+  }
+
+  if (length(empty_rna_transcripts) > 0){
+
+    stop(paste('The following transcripts have 0 counts across all the RNA samples.Please filter your counts matrix using Ribolog::min_count_filter before proceeding. Empty Transcripts:',
+    paste(unlist(empty_rna_transcripts), collapse=',')))
+  }
+
   logit_x <- t(apply(x, 1, logit_seq_gene))
   prep1 <- cbind.data.frame(design, data.frame(counts1 = as.numeric(x[1,])))
   fit1 <- suppressWarnings(glm(model, data=prep1, family="binomial"(link="logit"), weights = counts1))
