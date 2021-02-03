@@ -31,6 +31,7 @@
 #' "qvalue" calls the \emph{qvalue} package. Other methods are from base R.
 #' @param feature_list (Optional) A vector containing IDs of genes/transcripts.
 #' Must have the same length as the row number of input data frame.
+#' @param allow_zero_rpf A boolean allowing the total RPF counts of a transcript to be 0
 #' @return A matrix containing the output of the regression. If long output is requested, four
 #' values are reported for each predictor in the regression 'model' including the intercept:
 #' regression coefficient (beta), standard deviation of the estimated beta, z-score and Wald-test p-value.
@@ -57,7 +58,7 @@
 #' fit5_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ cell_line, as.vector(rr_LMCN.v2$transcript))
 #' @export
 
-logit_seq <- function(x, design, model, adj_method, feature_list=NULL, long_output = TRUE){
+logit_seq <- function(x, design, model, adj_method, feature_list=NULL, long_output = TRUE, , allow_zero_rpf=FALSE){
   logit_seq_gene <- function(m){
     prep <- data.frame(design,m)
     fit <- suppressWarnings(glm(model, data=prep, family="binomial"(link="logit"), weights = m))
@@ -84,16 +85,19 @@ logit_seq <- function(x, design, model, adj_method, feature_list=NULL, long_outp
     }
   }
 
-  if (length(empty_rpf_transcripts) > 0){
+  if (length(empty_rpf_transcripts) > 0 && ){
 
-    stop(paste0('The following transcripts have 0 counts across all the RPF samples.Please filter your counts matrix using Ribolog::min_count_filter before proceeding. Empty Transcripts:',
-    paste(unlist(empty_rpf_transcripts), collapse=',')))
+    warning(sprintf('There are ( %s ) transcripts that have 0 counts across all the RPF samples.You can allow RPF counts
+    to be 0 using allow_zero_rpf=TRUE option or filter them using Ribolog::min_count_filter. These transcripts have been
+    removed for now.', length(empty_rpf_transcripts)))
+    x <- Ribolog::min_count_filter(x, mincount = 5, columns = design$read_type=='RPF' , method = "all")
   }
 
   if (length(empty_rna_transcripts) > 0){
 
-    stop(paste('The following transcripts have 0 counts across all the RNA samples.Please filter your counts matrix using Ribolog::min_count_filter before proceeding. Empty Transcripts:',
-    paste(unlist(empty_rna_transcripts), collapse=',')))
+    warning(sprintf('There are ( %s ) transcripts that have 0 counts across all the RNA samples.You can filter them using
+    Ribolog::min_count_filter. These transcripts have been removed for now.', length(empty_rna_transcripts)))
+    x <- Ribolog::min_count_filter(x, mincount = 2, columns = design$read_type=='RNA', method = "average")
   }
 
   logit_x <- t(apply(x, 1, logit_seq_gene))

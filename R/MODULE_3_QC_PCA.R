@@ -87,17 +87,18 @@ create_te <- function(x, idcolumns=NULL, rnacolumns, rpfcolumns, allow_zero_rpf=
     }
   }
 
-  if (length(empty_rpf_transcripts) > 0){
+  if (length(empty_rpf_transcripts) > 0 && !allow_zero_rpf){
 
-    stop(paste0('The following transcripts have 0 counts across all the RPF samples.Please filter your counts matrix using Ribolog::min_count_filter before proceeding. You can allow RPF counts
-    to be 0 using allow_zero_rpf=TRUE option. Empty Transcripts:',
-    paste(unlist(empty_rpf_transcripts), collapse=',')))
+    warning(sprintf('There are ( %s ) transcripts that have 0 counts across all the RPF samples.You can allow RPF counts
+    to be 0 using allow_zero_rpf=TRUE option or filter them using Ribolog::min_count_filter. These transcripts have been removed for now.', length(empty_rpf_transcripts)))
+    x <- Ribolog::min_count_filter(x, mincount = 5, columns = rpfcolumns, method = "all")
   }
 
   if (length(empty_rna_transcripts) > 0){
 
-    stop(paste('The following transcripts have 0 counts across all the RNA samples.Please filter your counts matrix using Ribolog::min_count_filter before proceeding. Empty Transcripts:',
-    paste(unlist(empty_rna_transcripts), collapse=',')))
+    warning(sprintf('There are ( %s ) transcripts that have 0 counts across all the RNA samples.You can filter them using Ribolog::min_count_filter.
+    These transcripts have been removed for now.', length(empty_rna_transcripts)))
+    x <- Ribolog::min_count_filter(x, mincount = 2, columns = rnacolumns, method = "average")
   }
 
 
