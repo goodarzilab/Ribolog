@@ -110,100 +110,129 @@ load_annotation_and_cdna <- function(organism){
 #' @examples
 #' reads_list_LMCN <- bamtolist_rW("<folder.path>/RPF_sorted_indexed", annotation_human_cDNA)
 #' @export
-bamtolist_rW <- function(bamfolder, annotation, transcript_align = TRUE, name_samples = NULL,
-                         indel_threshold = 5, refseq_sep = NULL, granges = FALSE)
-{
-  names <- list.files(path = bamfolder, pattern = ".bam$")
+bamtolist_rW <- function(bamfolder, annotation, transcript_align = TRUE,
+                      name_samples = NULL, indel_threshold = 5,
+                      refseq_sep = NULL, granges = FALSE) {
+
+  name_bams <- list.files(path = bamfolder, pattern = ".bam$")
+
   if (length(name_samples) == 0) {
-    name_samples <- unlist(strsplit(names, ".bam"))
-    names(name_samples) <- unlist(strsplit(names, ".bam"))
-  }
-  else {
-    if (length(name_samples) > length(names)) {
-      cat("\n")
-      stop("length of name_samples greater than number of files\n\n")
+    name_samples <- unlist(strsplit(name_bams, ".bam"))
+    names(name_samples) <- name_samples
+  } else {
+    if(is.null(names(name_samples)) | any(names(name_samples) == "") ){
+      stop("name_samples must be a named character vector or NULL.")
+    } else {
+      if( !all( sel <- names(name_samples) %in% unlist(strsplit(name_bams, ".bam")) ) ){
+        if(sum(!sel) == 1){
+          stop("file(s) not found in folder ", bamfolder, ": ",
+               paste0(names(name_samples)[!sel], ".bam. "),
+               "Please check name_samples\n")
+        } else {
+          stop("file(s) not found in folder ", bamfolder, ": ",
+               paste0(names(name_samples)[!sel][1:(sum(!sel) - 1)], ".bam, "),
+               paste0(names(name_samples)[!sel][sum(!sel)], ".bam. "),
+               "Please check name_samples\n")
+        }
+      }
     }
-    if (length(name_samples) < length(names)) {
-      cat("\n")
-      stop("length of name_samples smaller than number of files\n\n")
-    }
   }
+
   sample_reads_list <- list()
-  for (n in names) {
-    cat(sprintf("reading %s\n", n))
-    sampname <- unname(name_samples[unlist(strsplit(n, ".bam"))])
-    filename <- paste(bamfolder, n, sep = "/")
+  for(current_sample in names(name_samples)) {
+    current_bam <- paste0(current_sample,".bam")
+
+    cat(sprintf("Reading %s\n", current_bam))
+    filename <- file.path(bamfolder, current_bam)
     dt <- as.data.table(GenomicAlignments::readGAlignments(filename))
     nreads <- nrow(dt)
-    dt <- dt[, `:=`(diff_width, qwidth - width)][abs(diff_width) <=
-                                                   indel_threshold]
-    if (nreads != nrow(dt)) {
-      cat(sprintf("%s M  (%s %%) reads removed: exceeding indel_threshold.\n",
-                  format(round((nreads - nrow(dt))/1e+06, 2), nsmall = 2),
-                  format(round(((nreads - nrow(dt))/nreads) * 100,
-                               2), nsmall = 2)))
-    }
-    else {
+    cat(sprintf("Input reads: %s M\n", format(round((nreads / 1000000), 3), nsmall = 3)))
+    dt <- dt[, diff_width := qwidth - width
+             ][abs(diff_width) <= indel_threshold]
+    if(nreads != nrow(dt)){
+      perc_nreads <- round(((nreads - nrow(dt)) / nreads) * 100, 3)
+      if(perc_nreads >= 0.001){
+        cat(sprintf("%s M  (%s %%) reads removed: exceeding indel_threshold.\n",
+                    format(round((nreads - nrow(dt)) / 1000000, 3), nsmall = 3),
+                    format(perc_nreads, nsmall = 3) ))
+      } else {
+        cat(sprintf("%s (< 0.001 %%) reads removed: exceeding indel_threshold.\n",
+                    format(round((nreads - nrow(dt)), 3), nsmall = 3)))
+      }
+    } else {
       cat("Good! Number of indel below indel_threshold for all reads. No reads removed.\n")
     }
+
     dt <- dt[, .(seqnames, start, end, width, strand)]
-    setnames(dt, c("transcript", "end5", "end3", "length",
-                   "strand"))
-    if (length(refseq_sep) != 0) {
-      dt <- dt[, `:=`(transcript, tstrsplit(transcript,
-                                            refseq_sep, fixed = TRUE, keep = 1))]
+    setnames(dt, c("transcript", "end5", "end3", "length", "strand"))
+
+    if(length(refseq_sep) != 0){
+      dt <- dt[, transcript := tstrsplit(transcript, refseq_sep, fixed = TRUE, keep = 1)]
     }
+
     nreads <- nrow(dt)
-    cat(sprintf("reads: %s M\n", format(round((nreads/1e+06),
-                                              2), nsmall = 2)))
     dt <- dt[as.character(transcript) %in% as.character(annotation$transcript)]
-    if (nreads != nrow(dt)) {
-      if (nrow(dt) == 0) {
+    if(nreads != nrow(dt)){
+      if(nrow(dt) == 0){
         stop(sprintf("%s M  (%s %%) reads removed: reference transcript IDs not found in annotation table.\n\n",
-                     format(round((nreads - nrow(dt))/1e+06, 2),
-                            nsmall = 2), format(round(((nreads - nrow(dt))/nreads) *
-                                                        100, 2), nsmall = 2)))
-      }
-      else {
+                     format(round((nreads - nrow(dt)) / 1000000, 3), nsmall = 3),
+                     format(round(((nreads - nrow(dt)) / nreads) * 100, 3), nsmall = 3) ))
+      } else{
         cat(sprintf("%s M  (%s %%) reads removed: reference transcript IDs not found in annotation table.\n",
-                    format(round((nreads - nrow(dt))/1e+06, 2),
-                           nsmall = 2), format(round(((nreads - nrow(dt))/nreads) *
-                                                       100, 2), nsmall = 2)))
+                    format(round((nreads - nrow(dt)) / 1000000, 3), nsmall = 3),
+                    format(round(((nreads - nrow(dt)) / nreads) * 100, 3), nsmall = 3) ))
       }
+    } else {
+      cat("Great! All reads' reference transcript IDs were found in the annotation table. No reads removed.\n")
     }
-    else {
-      cat("Great! All reads' reference transcript IDs were found in annotation table. No reads removed.\n")
-    }
-    if (transcript_align == TRUE | transcript_align == T) {
+
+    if(transcript_align == TRUE | transcript_align == T){
       nreads <- nrow(dt)
       dt <- dt[strand == "+"]
-      if (nreads != nrow(dt)) {
-        cat(sprintf("%s M  (%s %%) reads removed: mapping on negative strand.\n",
-                    format(round((nreads - nrow(dt))/1e+06, 2),
-                           nsmall = 2), format(round(((nreads - nrow(dt))/nreads) *
-                                                       100, 2), nsmall = 2)))
-      }
-      else {
+
+      if(nreads != nrow(dt)){
+        perc_nreads <- round(((nreads - nrow(dt)) / nreads) * 100, 3)
+        if(perc_nreads >= 0.001){
+          cat(sprintf("%s M  (%s %%) reads removed: mapping on negative strand.\n",
+                      format(round((nreads - nrow(dt)) / 1000000, 3), nsmall = 3),
+                      format(perc_nreads, nsmall = 3) ))
+        } else {
+          cat(sprintf("%s (< 0.001 %%) reads removed: mapping on negative strand.\n",
+                      format(round((nreads - nrow(dt)), 3), nsmall = 3)))
+        }
+      } else {
         cat("Cool! All reads mapping on positive strand. No reads removed.\n")
       }
     }
-    dt[annotation, on = "transcript", `:=`(c("cds_start",
-                                             "cds_stop"), list(i.l_utr5 + 1, i.l_utr5 + i.l_cds))]
-    dt[cds_start == 1 & cds_stop == 0, `:=`(cds_start, 0)]
-    dt[, `:=`(strand, NULL)]
+
+    dt[annotation, on = 'transcript', c("cds_start", "cds_stop") := list(i.l_utr5 + 1, i.l_utr5 + i.l_cds)]
+    dt[cds_start == 1 & cds_stop == 0, cds_start := 0]
+    dt[, strand := NULL]
+
+    nreads <- nrow(dt)
+    cat(sprintf("Output reads: %s M\n", format(round((nreads / 1000000), 3), nsmall = 3)))
+
     if (granges == T || granges == TRUE) {
       dt <- GenomicRanges::makeGRangesFromDataFrame(dt,
-                                                    keep.extra.columns = TRUE, ignore.strand = TRUE,
-                                                    seqnames.field = c("transcript"), start.field = "end5",
-                                                    end.field = "end3", strand.field = "strand",
+                                                    keep.extra.columns = TRUE,
+                                                    ignore.strand = TRUE,
+                                                    seqnames.field = c("transcript"),
+                                                    start.field = "end5",
+                                                    end.field = "end3",
+                                                    strand.field = "strand",
                                                     starts.in.df.are.0based = FALSE)
       GenomicRanges::strand(dt) <- "+"
     }
-    sample_reads_list[[sampname]] <- dt
+
+    sample_reads_list[[name_samples[current_sample]]] <- dt
+    cat("Done!", current_bam, "has been loaded as", name_samples[current_sample], "\n\n")
+
   }
+
   if (granges == T || granges == TRUE) {
     sample_reads_list <- GenomicRanges::GRangesList(sample_reads_list)
   }
+
   return(sample_reads_list)
 }
 
@@ -291,117 +320,126 @@ print_read_ldist <- function(reads_list, outfile=NULL, cl=99){
 #' @examples
 #' psite_offset_LMCN <- psite_rW(reads_list_LMCN)
 #' @export
-psite_rW <- function(reads_list, flanking = 6, start = TRUE, extremity = "auto",
-                     plot = FALSE, plot_dir = NULL, plot_format = "png", cl = 99){
-  data <- reads_list
+psite_rW <- function(data, flanking = 6, start = TRUE, extremity = "auto",
+                  plot = FALSE, plot_dir = NULL, plot_format = "png", cl = 99,
+                  log_file = FALSE, log_file_dir = NULL) {
+
+  if(log_file == T | log_file == TRUE){
+    if(length(log_file_dir) == 0){
+      log_file_dir <- getwd()
+    }
+    if (!dir.exists(log_file_dir)) {
+      dir.create(log_file_dir)
+    }
+    logpath <- paste0(log_file_dir, "/best_offset.txt")
+    cat("sample\texremity\toffset(nts)\n", file = logpath)
+  }
+
   names <- names(data)
   offset <- NULL
   for (n in names) {
     cat(sprintf("processing %s\n", n))
     dt <- data[[n]]
     lev <- sort(unique(dt$length))
-    if (start == T | start == TRUE) {
+    if(start == T | start == TRUE){
       base <- 0
-      dt[, `:=`(site_dist_end5, end5 - cds_start)]
-      dt[, `:=`(site_dist_end3, end3 - cds_start)]
-    }
-    else {
+      dt[, site_dist_end5 := end5 - cds_start]
+      dt[, site_dist_end3 := end3 - cds_start]
+    } else {
       base <- -5
-      dt[, `:=`(site_dist_end5, end5 - cds_stop - base)]
-      dt[, `:=`(site_dist_end3, end3 - cds_stop - base)]
+      dt[, site_dist_end5 := end5 - cds_stop - base]
+      dt[, site_dist_end3 := end3 - cds_stop - base]
     }
-    site_sub <- dt[site_dist_end5 <= -flanking & site_dist_end3 >=
-                     flanking - 1]
+    site_sub <- dt[site_dist_end5 <= -flanking & site_dist_end3 >= flanking - 1]
     minlen <- min(site_sub$length)
     maxlen <- max(site_sub$length)
     t <- table(factor(site_sub$length, levels = lev))
-    offset_temp <- data.table(length = as.numeric(as.character(names(t))),
-                              percentage = (as.vector(t)/sum(as.vector(t))) * 100)
-    offset_temp[, `:=`(around_site, "T")][percentage == 0,
-                                          `:=`(around_site, "F")]
-    offset_temp5 <- site_sub[, list(offset_from_5 = as.numeric(names(which.max(table(site_dist_end5))))),
-                             by = length]
-    offset_temp3 <- site_sub[, list(offset_from_3 = as.numeric(names(which.max(table(site_dist_end3))))),
-                             by = length]
-    merge_allx <- function(x, y) merge(x, y, all.x = TRUE,
-                                       by = "length")
-    offset_temp <- Reduce(merge_allx, list(offset_temp, offset_temp5,
-                                           offset_temp3))
-    adj_off <- function(dt_site, dist_site, add, bestoff) {
+
+    # offset
+    offset_temp <- data.table(length = as.numeric(as.character(names(t))), percentage = (as.vector(t)/sum(as.vector(t))) * 100)
+    offset_temp[, around_site := "T"
+                ][percentage == 0, around_site := "F"]
+    tempoff <- function(v_dist){
+      ttable <- sort(table(v_dist), decreasing = T)
+      ttable_sr <- ttable[as.character(as.numeric(names(ttable))+1)]
+      ttable_sl <- ttable[as.character(as.numeric(names(ttable))-1)]
+      tsel <- rowSums(cbind(ttable > ttable_sr, ttable > ttable_sl), na.rm = T)
+      return(as.numeric(names(tsel[tsel == 2][1])))
+    }
+
+    offset_temp5 <- site_sub[, list(offset_from_5 = tempoff(.SD$site_dist_end5)), by = length]
+    offset_temp3 <- site_sub[, list(offset_from_3 = tempoff(.SD$site_dist_end3)), by = length]
+    merge_allx <- function(x, y) merge(x, y, all.x = TRUE, by = "length")
+    offset_temp  <-  Reduce(merge_allx, list(offset_temp, offset_temp5, offset_temp3))
+
+    # adjusted offset
+    adj_off <- function(dt_site, dist_site, add, bestoff){
       temp_v <- dt_site[[dist_site]]
-      t <- table(factor(temp_v, levels = seq(min(temp_v) -
-                                               2, max(temp_v) + add)))
+      t <- table(factor(temp_v, levels = seq(min(temp_v) - 2, max(temp_v) + add)))
       t[1:2] <- t[3] + 1
-      locmax <- as.numeric(as.character(names(t[which(diff(sign(diff(t))) ==
-                                                        -2)]))) + 1
+      locmax <- as.numeric(as.character(names(t[which(diff(sign(diff(t))) == -2)]))) + 1
       adjoff <- locmax[which.min(abs(locmax - bestoff))]
       ifelse(length(adjoff) != 0, adjoff, bestoff)
     }
-    best_from5_tab <- offset_temp[, list(perc = sum(percentage)),
-                                  offset_from_5][perc == max(perc)]
-    best_from3_tab <- offset_temp[, list(perc = sum(percentage)),
-                                  offset_from_3][perc == max(perc)]
-    if (extremity == "auto" & ((best_from3_tab[, perc] >
-                                best_from5_tab[, perc] & as.numeric(best_from3_tab[,
-                                                                                   offset_from_3]) <= minlen - 2) | (best_from3_tab[,
-                                                                                                                                    perc] <= best_from5_tab[, perc] & as.numeric(best_from5_tab[,
-                                                                                                                                                                                                offset_from_5]) <= minlen - 1)) | extremity == "3end") {
+
+    best_from5_tab <- offset_temp[!is.na(offset_from_5), list(perc = sum(percentage)), by = offset_from_5
+                                  ][perc == max(perc)]
+    best_from3_tab <- offset_temp[!is.na(offset_from_5), list(perc = sum(percentage)), by = offset_from_3
+                                  ][perc == max(perc)]
+
+    if(extremity == "auto" &
+       ((best_from3_tab[, perc] > best_from5_tab[, perc] &
+         as.numeric(best_from3_tab[, offset_from_3]) <= minlen - 2) |
+        (best_from3_tab[, perc] <= best_from5_tab[, perc] &
+         as.numeric(best_from5_tab[, offset_from_5]) > minlen - 1)) |
+       extremity == "3end"){
       best_offset <- as.numeric(best_from3_tab[, offset_from_3])
-      line_plot <- "from3"
-      cat(sprintf("best offset: %i nts from the 3' end\n",
-                  best_offset))
-      adj_tab <- site_sub[, list(corrected_offset_from_3 = adj_off(.SD,
-                                                                   "site_dist_end3", 0, best_offset)), by = length]
-      offset_temp <- merge(offset_temp, adj_tab, all.x = TRUE,
-                           by = "length")
-      offset_temp[is.na(corrected_offset_from_3), `:=`(corrected_offset_from_3,
-                                                       best_offset)][, `:=`(corrected_offset_from_5,
-                                                                            -corrected_offset_from_3 + length - 1)]
-    }
-    else {
-      if (extremity == "auto" & ((best_from3_tab[, perc] <=
-                                  best_from5_tab[, perc] & as.numeric(best_from5_tab[,
-                                                                                     offset_from_5]) <= minlen - 1) | (best_from3_tab[,
-                                                                                                                                      perc] > best_from5_tab[, perc] & as.numeric(best_from3_tab[,
-                                                                                                                                                                                                 offset_from_3]) > minlen - 2)) | extremity ==
-          "5end") {
+      line_plot <- "3end"
+      adj_tab <- site_sub[, list(corrected_offset_from_3 = adj_off(.SD, "site_dist_end3", 0, best_offset)), by = length]
+      offset_temp <- merge(offset_temp, adj_tab, all.x = TRUE, by = "length")
+      offset_temp[is.na(corrected_offset_from_3), corrected_offset_from_3 := best_offset
+                  ][, corrected_offset_from_5 := -corrected_offset_from_3 + length - 1]
+    } else {
+      if(extremity == "auto" &
+         ((best_from3_tab[, perc] <= best_from5_tab[, perc] &
+           as.numeric(best_from5_tab[, offset_from_5]) <= minlen - 1) |
+          (best_from3_tab[, perc] > best_from5_tab[, perc] &
+           as.numeric(best_from3_tab[, offset_from_3]) > minlen - 2)) |
+         extremity == "5end"){
         best_offset <- as.numeric(best_from5_tab[, offset_from_5])
-        line_plot <- "from5"
-        cat(sprintf("best offset: %i nts from the 5' end\n",
-                    -best_offset))
-        adj_tab <- site_sub[, list(corrected_offset_from_5 = adj_off(.SD,
-                                                                     "site_dist_end5", 1, best_offset)), by = length]
-        offset_temp <- merge(offset_temp, adj_tab, all.x = TRUE,
-                             by = "length")
-        offset_temp[is.na(corrected_offset_from_5), `:=`(corrected_offset_from_5,
-                                                         best_offset)][, `:=`(corrected_offset_from_5,
-                                                                              abs(best_offset))][, `:=`(corrected_offset_from_3,
-                                                                                                        abs(corrected_offset_from_5 - length + 1))]
+        line_plot <- "5end"
+        adj_tab <- site_sub[, list(corrected_offset_from_5 = adj_off(.SD, "site_dist_end5", 1, best_offset)), by = length]
+        offset_temp <- merge(offset_temp, adj_tab, all.x = TRUE, by = "length")
+        offset_temp[is.na(corrected_offset_from_5), corrected_offset_from_5 := best_offset
+                    ][, corrected_offset_from_5 := abs(corrected_offset_from_5)
+                      ][, corrected_offset_from_3 := abs(corrected_offset_from_5 - length + 1)]
       }
     }
+
+    cat(sprintf("best offset: %i nts from the %s\n", abs(best_offset), gsub("end", "' end", line_plot)))
+
+    if(log_file == T | log_file == TRUE){
+      cat(sprintf("%s\t%s\t%i\n", n, gsub("end", "'end", line_plot), abs(best_offset)), file = logpath, append = TRUE)
+    }
+
     t <- table(factor(dt$length, levels = lev))
-    offset_temp[!is.na(offset_from_5), `:=`(offset_from_5,
-                                            abs(offset_from_5))][, `:=`(total_percentage, as.numeric(format(round((as.vector(t)/sum(as.vector(t))) *
-                                                                                                                    100, 3), nsmall = 4)))][, `:=`(percentage, as.numeric(format(round(percentage,
-                                                                                                                                                                                       3), nsmall = 4)))][, `:=`(sample, n)]
-    setcolorder(offset_temp, c("length", "total_percentage",
-                               "percentage", "around_site", "offset_from_5", "offset_from_3",
-                               "corrected_offset_from_5", "corrected_offset_from_3",
-                               "sample"))
-    if (start == TRUE | start == T) {
-      setnames(offset_temp, c("length", "total_percentage",
-                              "start_percentage", "around_start", "offset_from_5",
-                              "offset_from_3", "corrected_offset_from_5", "corrected_offset_from_3",
-                              "sample"))
+    offset_temp[!is.na(offset_from_5), offset_from_5 := abs(offset_from_5)
+                ][, total_percentage := as.numeric(format(round((as.vector(t)/sum(as.vector(t))) * 100, 3), nsmall=4))
+                  ][, percentage := as.numeric(format(round(percentage, 3), nsmall=4))
+                    ][, sample := n]
+
+    setcolorder(offset_temp, c("length", "total_percentage", "percentage", "around_site", "offset_from_5", "offset_from_3", "corrected_offset_from_5", "corrected_offset_from_3", "sample"))
+    if(start == TRUE | start == T){
+      setnames(offset_temp, c("length", "total_percentage", "start_percentage", "around_start", "offset_from_5", "offset_from_3", "corrected_offset_from_5", "corrected_offset_from_3", "sample"))
+      xlab_plot<-"Distance from start (nt)"
+    } else {
+      setnames(offset_temp, c("length", "total_percentage", "stop_percentage", "around_stop", "offset_from_5", "offset_from_3", "corrected_offset_from_5", "corrected_offset_from_3", "sample"))
+      xlab_plot<-"Distance from stop (nt)"
     }
-    else {
-      setnames(offset_temp, c("length", "total_percentage",
-                              "stop_percentage", "around_stop", "offset_from_5",
-                              "offset_from_3", "corrected_offset_from_5", "corrected_offset_from_3",
-                              "sample"))
-    }
+
+    # plot
     if (plot == T | plot == TRUE) {
-      options(warn = -1)
+      options(warn=-1)
       if (length(plot_dir) == 0) {
         dir <- getwd()
         plot_dir <- paste(dir, "/offset_plot", sep = "")
@@ -409,92 +447,67 @@ psite_rW <- function(reads_list, flanking = 6, start = TRUE, extremity = "auto",
       if (!dir.exists(plot_dir)) {
         dir.create(plot_dir)
       }
-      minlen <- ceiling(quantile(site_sub$length, (1 -
-                                                     cl/100)/2))
-      maxlen <- ceiling(quantile(site_sub$length, 1 - (1 -
-                                                         cl/100)/2))
+      minlen <- ceiling(quantile(site_sub$length, (1 - cl/100)/2))
+      maxlen <- ceiling(quantile(site_sub$length, 1 - (1 - cl/100)/2))
       for (len in minlen:maxlen) {
-        progress <- ceiling(((len + 1 - minlen)/(maxlen -
-                                                   minlen + 1)) * 25)
-        cat(sprintf("\rplotting   %s\r", paste(paste(rep(c(" ",
-                                                           "<<", "-"), c(25 - progress, 1, progress)),
-                                                     collapse = ""), " ", as.character(progress *
-                                                                                         4), "% ", paste(rep(c("-", ">>", " "), c(progress,
-                                                                                                                                  1, 25 - progress)), collapse = ""), sep = "")))
-        site_temp <- dt[site_dist_end5 %in% seq(-len +
-                                                  1, 0) & length == len]
-        site_tab5 <- data.table(table(factor(site_temp$site_dist_end5,
-                                             levels = (-len + 1):(len))))
-        site_temp <- dt[site_dist_end3 %in% seq(0, len -
-                                                  2) & length == len]
-        site_tab3 <- data.table(table(factor(site_temp$site_dist_end3,
-                                             levels = (-len):(len - 2))))
+        progress <- ceiling(((len + 1 - minlen)/(maxlen - minlen + 1)) * 25)
+        cat(sprintf("\rplotting   %s\r", paste(paste(rep(c(" ", "<<", "-"),
+                                                         c(25 - progress, 1, progress)), collapse = ""), " ", as.character(progress*4),
+                                               "% ", paste(rep(c("-", ">>", " "), c(progress, 1, 25 - progress)), collapse = ""), sep = "")))
+        site_temp <- dt[site_dist_end5 %in% seq(-len + 1, 0) & length == len]
+        site_tab5 <- data.table(table(factor(site_temp$site_dist_end5, levels = (-len + 1) : (len))))
+        site_temp <- dt[site_dist_end3 %in% seq(0, len - 2) & length == len]
+        site_tab3 <- data.table(table(factor(site_temp$site_dist_end3, levels = (-len) : (len - 2))))
         setnames(site_tab5, c("distance", "reads"))
         setnames(site_tab3, c("distance", "reads"))
-        site_tab5[, `:=`(distance, as.numeric(as.character(site_tab5$distance)))][,
-                                                                                  `:=`(extremity, "5' end")]
-        site_tab3[, `:=`(distance, as.numeric(as.character(site_tab3$distance)))][,
-                                                                                  `:=`(extremity, "3' end")]
-        final_tab <- rbind(site_tab5[distance <= 0],
-                           site_tab3[distance >= 0])
-        final_tab[, `:=`(extremity, factor(extremity,
-                                           levels = c("5' end", "3' end")))]
+        site_tab5[, distance := as.numeric(as.character(site_tab5$distance))
+                  ][, extremity := "5' end"]
+        site_tab3[, distance := as.numeric(as.character(site_tab3$distance))
+                  ][, extremity := "3' end"]
+        final_tab <- rbind(site_tab5[distance <= 0], site_tab3[distance >= 0])
+        final_tab[, extremity := factor(extremity, levels = c("5' end", "3' end"))]
+
         p <- ggplot(final_tab, aes(distance, reads, color = extremity)) +
-          geom_line() + geom_vline(xintercept = seq(floor(min(final_tab$distance)/3) *
-                                                      3, floor(max(final_tab$distance)/3) * 3, 3),
-                                   linetype = 2, color = "gray90") + geom_vline(xintercept = 0,
-                                                                                color = "gray50") + geom_vline(xintercept = -offset_temp[length ==
-                                                                                                                                           len, offset_from_5], color = "#D55E00", linetype = 2,
-                                                                                                               size = 1.1) + geom_vline(xintercept = offset_temp[length ==
-                                                                                                                                                                   len, offset_from_3], color = "#56B4E9", linetype = 2,
-                                                                                                                                        size = 1.1) + geom_vline(xintercept = -offset_temp[length ==
-                                                                                                                                                                                             len, corrected_offset_from_5], color = "#D55E00",
-                                                                                                                                                                 size = 1.1) + geom_vline(xintercept = offset_temp[length ==
-                                                                                                                                                                                                                     len, corrected_offset_from_3], color = "#56B4E9",
-                                                                                                                                                                                          size = 1.1) + annotate("rect", ymin = -Inf,
-                                                                                                                                                                                                                 ymax = Inf, xmin = flanking - len, xmax = -flanking,
-                                                                                                                                                                                                                 fill = "#D55E00", alpha = 0.1) + annotate("rect",
-                                                                                                                                                                                                                                                           ymin = -Inf, ymax = Inf, xmin = flanking -
-                                                                                                                                                                                                                                                             1, xmax = len - flanking - 1, fill = "#56B4E9",
-                                                                                                                                                                                                                                                           alpha = 0.1) + labs(x = "Distance from start (nt)",
-                                                                                                                                                                                                                                                                               y = "Number of read extremities", title = paste(n,
-                                                                                                                                                                                                                                                                                                                               " - length=", len, " nts", sep = ""), color = "Extremity") +
-          theme_bw(base_size = 20) + scale_fill_discrete("") +
-          theme(panel.grid.major.x = element_blank(),
-                panel.grid.minor.x = element_blank(), strip.placement = "outside") +
+          geom_line() +
+          geom_vline(xintercept = seq(floor(min(final_tab$distance)/3) * 3, floor(max(final_tab$distance)/3) * 3, 3), linetype = 2, color = "gray90") +
+          geom_vline(xintercept = 0, color = "gray50") +
+          geom_vline(xintercept = - offset_temp[length == len, offset_from_5], color = "#D55E00", linetype = 2, size = 1.1) +
+          geom_vline(xintercept = offset_temp[length == len, offset_from_3], color = "#56B4E9", linetype = 2, size = 1.1) +
+          geom_vline(xintercept = - offset_temp[length == len, corrected_offset_from_5], color = "#D55E00", size = 1.1) +
+          geom_vline(xintercept = offset_temp[length == len, corrected_offset_from_3], color = "#56B4E9", size = 1.1) +
+          annotate("rect", ymin = -Inf, ymax = Inf, xmin = flanking - len, xmax = -flanking , fill = "#D55E00", alpha = 0.1) +
+          annotate("rect", ymin = -Inf, ymax = Inf, xmin = flanking - 1 , xmax = len - flanking - 1, fill = "#56B4E9", alpha = 0.1) +
+          labs(x = xlab_plot, y = "Number of read extremities", title = paste(n, " - length=", len, " nts", sep = ""), color= "Extremity") +
+          theme_bw(base_size = 20) +
+          scale_fill_discrete("") +
+          theme(panel.grid.major.x = element_blank(), panel.grid.minor.x = element_blank(), strip.placement = "outside") +
           theme(plot.title = element_text(hjust = 0.5))
-        if (line_plot == "from3") {
-          p <- p + geom_vline(xintercept = best_offset,
-                              color = "black", linetype = 3, size = 1.1) +
-            geom_vline(xintercept = best_offset - len +
-                         1, color = "black", linetype = 3, size = 1.1)
+
+        if(line_plot == "3end"){
+          p <- p + geom_vline(xintercept = best_offset, color = "black", linetype = 3, size = 1.1) +
+            geom_vline(xintercept = best_offset - len + 1, color = "black", linetype = 3, size = 1.1)
+        } else {
+          p <- p + geom_vline(xintercept = best_offset, color = "black", linetype = 3, size = 1.1) +
+            geom_vline(xintercept = best_offset + len - 1, color = "black", linetype = 3, size = 1.1)
         }
-        else {
-          p <- p + geom_vline(xintercept = best_offset,
-                              color = "black", linetype = 3, size = 1.1) +
-            geom_vline(xintercept = best_offset + len -
-                         1, color = "black", linetype = 3, size = 1.1)
-        }
-        p <- p + scale_x_continuous(limits = c(min(final_tab$distance),
-                                               max(final_tab$distance)), breaks = seq(floor(min(final_tab$distance)/5) *
-                                                                                        5, floor(max(final_tab$distance)/5) * 5, 5),
-                                    labels = as.character(seq(floor(min(final_tab$distance)/5) *
-                                                                5, floor(max(final_tab$distance)/5) * 5,
-                                                              5) + base))
+
+        p <- p +
+          scale_x_continuous(limits = c(min(final_tab$distance), max(final_tab$distance)),
+                             breaks = seq(floor(min(final_tab$distance)/5) * 5, floor(max(final_tab$distance)/5) * 5, 5),
+                             labels = as.character(seq(floor(min(final_tab$distance)/5) * 5, floor(max(final_tab$distance)/5) * 5, 5) + base))
+
         subplot_dir <- paste(plot_dir, n, sep = "/")
         dir.create(subplot_dir)
-        ggsave(paste(subplot_dir, "/", len, ".", plot_format,
-                     sep = ""), plot = p, width = 15, height = 5,
-               units = "in")
+        ggsave(paste(subplot_dir, "/", len, ".", plot_format, sep = ""), plot = p, width = 15, height = 5, units = "in")
       }
-      cat(sprintf("\rplotting   %s\n", paste(paste(rep(c(" ",
-                                                         "<<", "-"), c(25 - progress, 1, progress)), collapse = ""),
-                                             " ", as.character(progress * 4), "% ", paste(rep(c("-",
-                                                                                                ">>", " "), c(progress, 1, 25 - progress)),
-                                                                                          collapse = ""), sep = "")))
-      options(warn = 0)
+      cat(sprintf("\rplotting   %s\n",
+                  paste(paste(rep(c(" ", "<<", "-"), c(25 - progress, 1, progress)), collapse = ""), " ",
+                        as.character(progress*4), "% ",
+                        paste(rep(c("-", ">>", " "), c(progress, 1, 25 - progress)), collapse = ""), sep = "")))
+      options(warn=0)
     }
-    dt[, `:=`(c("site_dist_end5", "site_dist_end3"), NULL)]
+
+    dt[, c("site_dist_end5", "site_dist_end3") := NULL]
     offset <- rbind(offset, offset_temp)
   }
   return(offset)
@@ -512,56 +525,56 @@ psite_rW <- function(reads_list, flanking = 6, start = TRUE, extremity = "auto",
 #' @examples
 #' reads_psite_list_LMCN <- psite_info_rW(reads_list_LMCN, psite_offset_LMCN)
 #' @export
-psite_info_rW <- function(reads_list, offset, site = NULL, fastapath = NULL, fasta_genome = TRUE,
-                          refseq_sep = NULL, bsgenome = NULL, gtfpath = NULL, txdb = NULL,
-                          dataSource = NA, organism = NA, granges = FALSE){
-  data <- reads_list
-  if (!(all(site %in% c("psite", "asite", "esite"))) & length(site) !=
-      0) {
+psite_info_rW <- function(data, offset, site = NULL, fastapath = NULL,
+                       fasta_genome = TRUE, refseq_sep = NULL, bsgenome = NULL,
+                       gtfpath = NULL, txdb = NULL, dataSource = NA,
+                       organism = NA, granges = FALSE) {
+
+  if(!(all(site %in% c("psite", "asite", "esite"))) & length(site) != 0){
     cat("\n")
     stop("parameter site must be either NULL, \"psite\", \"asite\", \"esite\" or a combination of the three strings \n\n")
-  }
-  else {
-    if (length(site) != 0 & length(fastapath) == 0 & length(bsgenome) ==
-        0) {
+  } else {
+    if(length(site) != 0 & length(fastapath) == 0 & length(bsgenome) == 0){
       cat("\n")
       stop("parameter site is specified but both fastapath and bsgenome are missing \n\n")
     }
   }
-  if (length(site) != 0) {
-    if (((length(fastapath) != 0 & (fasta_genome == TRUE |
-                                    fasta_genome == T)) | length(bsgenome) != 0) & length(gtfpath) ==
-        0 & length(txdb) == 0) {
+
+  if(length(site) != 0){
+    if(((length(fastapath) != 0 & (fasta_genome == TRUE | fasta_genome == T)) |
+        length(bsgenome) != 0) &
+       length(gtfpath) == 0 & length(txdb) == 0){
       cat("\n")
       stop("genome annotation file not specified (both GTF path and TxDb object are missing)\n\n")
     }
-    if (length(fastapath) != 0 & length(bsgenome) != 0) {
+
+    if(length(fastapath) != 0 & length(bsgenome) != 0){
       cat("\n")
       warning("both fastapath and bsgenome are specified. Only fastapath will be considered\n")
       bsgenome = NULL
     }
-    if (length(gtfpath) != 0 & length(txdb) != 0) {
+
+    if(length(gtfpath) != 0 & length(txdb) != 0){
       cat("\n")
       warning("both gtfpath and txdb are specified. Only gtfpath will be considered\n")
       txdb = NULL
     }
-    if ((length(gtfpath) != 0 | length(txdb) != 0) & ((length(fastapath) ==
-                                                       0 & length(bsgenome) == 0) | (length(fastapath) !=
-                                                                                     0 & (fasta_genome == FALSE | fasta_genome == F)))) {
+
+    if((length(gtfpath) != 0 | length(txdb) != 0) &
+       ((length(fastapath) == 0 & length(bsgenome) == 0) |
+        (length(fastapath) != 0 & (fasta_genome == FALSE | fasta_genome == F)))){
       cat("\n")
       warning("a genome annotation file is specified but no sequences from genome assembly are provided\n")
     }
-    if (length(gtfpath) != 0 | length(txdb) != 0) {
-      if (length(gtfpath) != 0) {
+
+    if(length(gtfpath) != 0 | length(txdb) != 0){
+      if(length(gtfpath) != 0){
         path_to_gtf <- gtfpath
-        txdbanno <- GenomicFeatures::makeTxDbFromGFF(file = path_to_gtf,
-                                                     format = "gtf", dataSource = dataSource, organism = organism)
-      }
-      else {
-        if (txdb %in% rownames(installed.packages())) {
+        txdbanno <- GenomicFeatures::makeTxDbFromGFF(file = path_to_gtf, format = "gtf", dataSource = dataSource, organism = organism)
+      } else {
+        if(txdb %in% rownames(installed.packages())){
           library(txdb, character.only = TRUE)
-        }
-        else {
+        } else {
           source("https://bioconductor.org/biocLite.R")
           biocLite(txdb, suppressUpdates = TRUE)
           library(txdb, character.only = TRUE)
@@ -569,110 +582,113 @@ psite_info_rW <- function(reads_list, offset, site = NULL, fastapath = NULL, fas
         txdbanno <- get(txdb)
       }
     }
-    if (length(fastapath) != 0 | length(bsgenome) != 0) {
-      if (length(fastapath) != 0) {
-        if (fasta_genome == TRUE | fasta_genome == T) {
-          temp_sequences <- Biostrings::readDNAStringSet(fastapath,
-                                                         format = "fasta", use.names = TRUE)
-          if (length(refseq_sep) != 0) {
-            names(temp_sequences) <- tstrsplit(names(temp_sequences),
-                                               refseq_sep, fixed = TRUE, keep = 1)[[1]]
+
+    if(length(fastapath) != 0 | length(bsgenome) != 0){
+      if(length(fastapath) != 0) {
+        if(fasta_genome == TRUE | fasta_genome == T){
+          temp_sequences <- Biostrings::readDNAStringSet(fastapath, format = "fasta", use.names = TRUE)
+          if(length(refseq_sep) != 0){
+            names(temp_sequences) <- tstrsplit(names(temp_sequences), refseq_sep, fixed = TRUE, keep = 1)[[1]]
           }
-          exon <- suppressWarnings(GenomicFeatures::exonsBy(txdbanno,
-                                                            by = "tx", use.names = TRUE))
+          exon <- suppressWarnings(GenomicFeatures::exonsBy(txdbanno, by = "tx", use.names = TRUE))
           exon <- as.data.table(exon[unique(names(exon))])
-          sub_exon_plus <- exon[as.character(seqnames) %in%
-                                  names(temp_sequences) & strand == "+"]
-          sub_exon_minus <- exon[as.character(seqnames) %in%
-                                   names(temp_sequences) & strand == "-"][,
-                                                                          `:=`(new_end, Biostrings::width(temp_sequences[as.character(seqnames)]) -
-                                                                                 start + 1)][, `:=`(new_start, Biostrings::width(temp_sequences[as.character(seqnames)]) -
-                                                                                                      end + 1)]
-          seq_dt_plus <- sub_exon_plus[, `:=`(nt_seq,
-                                              "emp")][, `:=`(nt_seq, as.character(Biostrings::subseq(temp_sequences[as.character(seqnames)],
-                                                                                                     start = start, end = end)))][, list(seq = paste(nt_seq,
-                                                                                                                                                     collapse = "")), by = group_name]
-          revcompl_temp_sequences <- reverseComplement(temp_sequences)
-          seq_dt_minus <- sub_exon_minus[, `:=`(nt_seq,
-                                                "emp")][, `:=`(nt_seq, as.character(Biostrings::subseq(revcompl_temp_sequences[as.character(seqnames)],
-                                                                                                       start = new_start, end = new_end)))][, list(seq = paste(nt_seq,
-                                                                                                                                                               collapse = "")), by = group_name]
-          sequences <- Biostrings::DNAStringSet(c(seq_dt_plus$seq,
-                                                  seq_dt_minus$seq))
-          names(sequences) <- c(unique(sub_exon_plus$group_name),
-                                unique(sub_exon_minus$group_name))
-        }
-        else {
-          sequences <- Biostrings::readDNAStringSet(fastapath,
-                                                    format = "fasta", use.names = TRUE)
-          if (length(refseq_sep) != 0) {
-            names(sequences) <- tstrsplit(names(sequences),
-                                          refseq_sep, fixed = TRUE, keep = 1)[[1]]
+          sub_exon_plus <- exon[as.character(seqnames) %in% names(temp_sequences) & strand == "+"]
+          sub_exon_minus <- exon[as.character(seqnames) %in% names(temp_sequences) & strand == "-"
+                                 ][, new_end := Biostrings::width(temp_sequences[as.character(seqnames)]) - start + 1
+                                   ][, new_start := Biostrings::width(temp_sequences[as.character(seqnames)]) - end + 1]
+
+          seq_dt_plus <- sub_exon_plus[, nt_seq := "emp"
+                                       ][, nt_seq := as.character(Biostrings::subseq(temp_sequences[as.character(seqnames)],
+                                                                                     start = start,
+                                                                                     end = end))
+                                         ][, list(seq = paste(nt_seq, collapse = "")), by = group_name]
+
+          revcompl_temp_sequences <- Biostrings::reverseComplement(temp_sequences)
+          seq_dt_minus <- sub_exon_minus[, nt_seq := "emp"
+                                         ][, nt_seq := as.character(Biostrings::subseq(revcompl_temp_sequences[as.character(seqnames)],
+                                                                                       start = new_start,
+                                                                                       end = new_end))
+                                           ][, list(seq = paste(nt_seq, collapse = "")), by = group_name]
+
+          sequences <- Biostrings::DNAStringSet(c(seq_dt_plus$seq, seq_dt_minus$seq))
+          names(sequences) <- c(unique(sub_exon_plus$group_name), unique(sub_exon_minus$group_name))
+        } else {
+          sequences <- Biostrings::readDNAStringSet(fastapath, format = "fasta", use.names = TRUE)
+          if(length(refseq_sep) != 0){
+            names(sequences) <- tstrsplit(names(sequences), refseq_sep, fixed = TRUE, keep = 1)[[1]]
           }
         }
-      }
-      else {
-        if (bsgenome %in% installed.genomes()) {
+      } else {
+        if(bsgenome %in% installed.genomes()){
           library(bsgenome, character.only = TRUE)
-        }
-        else {
+        } else {
           source("http://www.bioconductor.org/biocLite.R")
           biocLite(bsgenome, suppressUpdates = TRUE)
           library(bsgenome, character.only = TRUE)
         }
-        sequences <- GenomicFeatures::extractTranscriptSeqs(get(bsgenome),
-                                                            txdbanno, use.names = T)
+        sequences <- GenomicFeatures::extractTranscriptSeqs(get(bsgenome), txdbanno, use.names=T)
       }
     }
   }
+
   names <- names(data)
   for (n in names) {
     cat(sprintf("processing %s\n", n))
     dt <- data[[n]]
-    suboff <- offset[sample == n, .(length, corrected_offset_from_3)]
+    suboff <- offset[sample == n, .(length,corrected_offset_from_3)]
     cat("1. adding p-site position\n")
-    dt[suboff, on = "length", `:=`(psite, i.corrected_offset_from_3)]
-    dt[, `:=`(psite, end3 - psite)]
-    setcolorder(dt, c("transcript", "end5", "psite", "end3",
-                      "length", "cds_start", "cds_stop"))
-    dt[, `:=`(psite_from_start, psite - cds_start)][cds_stop ==
-                                                      0, `:=`(psite_from_start, 0)]
-    dt[, `:=`(psite_from_stop, psite - cds_stop)][cds_stop ==
-                                                    0, `:=`(psite_from_stop, 0)]
+    dt[suboff,  on = 'length', psite := i.corrected_offset_from_3]
+    dt[, psite := end3 - psite]
+    setcolorder(dt,c("transcript", "end5", "psite", "end3", "length", "cds_start", "cds_stop"))
+    dt[, psite_from_start := psite - cds_start
+       ][cds_stop == 0, psite_from_start := 0]
+    dt[, psite_from_stop := psite - cds_stop
+       ][cds_stop == 0, psite_from_stop := 0]
     cat("2. adding transcript region\n")
-    dt[, `:=`(psite_region, "5utr")][psite_from_start >=
-                                       0 & psite_from_stop <= 0, `:=`(psite_region, "cds")][psite_from_stop >
-                                                                                              0, `:=`(psite_region, "3utr")][cds_stop == 0, `:=`(psite_region,
-                                                                                                                                                 NA)]
-    if (length(site) != 0) {
+    dt[, psite_region := "5utr"
+       ][psite_from_start >= 0 & psite_from_stop <= 0, psite_region := "cds"
+         ][psite_from_stop > 0, psite_region := "3utr"
+           ][cds_stop == 0, psite_region := NA]
+    if(length(site) != 0){
       cat("3. adding nucleotide sequence(s)\n")
-      if ("psite" %in% site) {
-        dt[, `:=`(p_site_codon, as.character(Biostrings::subseq(sequences[as.character(dt$transcript)],
-                                                                start = dt$psite, end = dt$psite + 2)))]
+      if("psite" %in% site){
+        dt[, p_site_codon := as.character(Biostrings::subseq(sequences[as.character(dt$transcript)],
+                                                             start = dt$psite,
+                                                             end = dt$psite + 2))]
       }
-      if ("asite" %in% site) {
-        dt[, `:=`(a_site_codon, as.character(Biostrings::subseq(sequences[as.character(dt$transcript)],
-                                                                start = dt$psite + 3, end = dt$psite + 5)))]
+      if("asite" %in% site){
+        dt[, a_site_codon := as.character(Biostrings::subseq(sequences[as.character(dt$transcript)],
+                                                             start = dt$psite + 3,
+                                                             end = dt$psite + 5))]
       }
-      if ("esite" %in% site) {
-        dt[, `:=`(e_site_codon, as.character(Biostrings::subseq(sequences[as.character(dt$transcript)],
-                                                                start = dt$psite - 3, end = dt$psite - 1)))]
+      if("esite" %in% site){
+        dt[, e_site_codon := as.character(Biostrings::subseq(sequences[as.character(dt$transcript)],
+                                                             start = dt$psite - 3,
+                                                             end = dt$psite - 1))]
       }
     }
-    setorder(dt, transcript, end5)
+
+    setorder(dt, transcript, end5, end3)
+
     if (granges == T | granges == TRUE) {
       dt <- GenomicRanges::makeGRangesFromDataFrame(dt,
-                                                    keep.extra.columns = TRUE, ignore.strand = TRUE,
-                                                    seqnames.field = c("transcript"), start.field = "end5",
-                                                    end.field = "end3", strand.field = "strand",
+                                                    keep.extra.columns = TRUE,
+                                                    ignore.strand = TRUE,
+                                                    seqnames.field = c("transcript"),
+                                                    start.field = "end5",
+                                                    end.field = "end3",
+                                                    strand.field = "strand",
                                                     starts.in.df.are.0based = FALSE)
       GenomicRanges::strand(dt) <- "+"
     }
+
     data[[n]] <- dt
   }
+
   if (granges == T | granges == TRUE) {
     data <- GenomicRanges::GRangesList(data)
   }
+
   return(data)
 }
 
