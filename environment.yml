@@ -8,6 +8,7 @@ dependencies:
   - bioconductor-GenomicAlignments
   - bioconductor-qvalue
   - bioconductor-EnhancedVolcano
+  - r-BiocManager
   - r-devtools
   - r-data.table
   - r-ggplot2
@@ -24,3 +25,4 @@ dependencies:
   - r-rlist
   - r-gdata
   - r-nlme
+  - r-fitdistrplus

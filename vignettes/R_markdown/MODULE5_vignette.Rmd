@@ -1,0 +1,255 @@
+---
+title: "MODULE 5: Alternative TER testing (empirical null and meta-analysis)"
+author: "Hossein Asgharian"
+date: "Jan 2021"
+output:
+  pdf_document: default
+  word_document: default
+vignette: |
+  %\VignetteIndexEntry{RIBOLOG Module 5: Empirical null testing and meta-analysis} %\VignetteEngine{knitr::rmarkdown} %\VignetteEncoding{UTF-8}
+---
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+library(Hmisc)
+library(xlsx)
+library(Ribolog)
+```
+
+
+This module offers functions for two important slightly advanced statistical tasks: hypothesis testing using empirical nulls, and meta-analysis. Let us start from the pre-processed dataset that we had produced in module 2, a normalized dataset with the low count transcripts removed.   
+
+# 5.1. Empirical Null Testing
+
+```{r message=FALSE, warning=FALSE}
+setwd("C:/Science/Projects/Ribosome profiling/Ribolog")
+rr_LMCN.v2 <- readRDS("./data-raw/rr_LMCN.v2")
+sample_attributes_LMCN <- read.xlsx("./data-raw/sample_attributes_LMCN.xlsx", sheetIndex = 1, header = TRUE)
+```
+
+In traditional hypothesis testing, usually only one or a few hypotheses are tested. The null is often expected to be rejected because the alternative is the more interesting outcome: rejecting the null means that there IS a relationship between the studied variables. That is what the researchers hope to demonstrate. In traditional small-scale inference, the test statistic's null distribution derives from theoretical assumptions. In large scale inference e.g. genomic or transcriptomic studies, most instances (SNPs, genes or transcripts) are expected to conform to null; we hardly expect the majority of genes to be differentially expressed or translated between biological samples. It may be thus possible to "observe" or "extract" the null distribution from the data itself. This is called an empirical null (EN) distribution. There are several ways of estimating the EN, which are outside the scope of this vignette. The interested reader may consult external references such as Bradley Efron's 2012 book: Large-Scale Inference: Empirical Bayes Methods for Estimation, Testing and Prediction, Cambridge University Press. 
+
+The Ribolog pipeline offers a unique opportunity for empirical null testing. Because sequencing reads are treated as units of observation, TER comparisons can be made between individual replicates. The empirical null distribution of the test statistic, i.e. z statistic from logistic regression, is obtained by comparing replicates of the same biological sample. This distribution will have incorporated every source of biological, experimental and pre-processing stochasticity (e.g. during mapping), and is not distorted by the presence of any alternative instances: no genes are expected to be differentially expressed or translated between replicates of the same biological sample. This is the basis of EN testing with Ribolog: in a replicated dataset, first, we generate the EN by comparing replicates of the same samples; then, we use it to assess the significance of test statistics coming from compariing different samples.  
+
+## 5.1.1. Generate empirical null
+
+The first step involves performing hypothesis testing between replicates of the same sample for all samples to generate the components of empirical null distribution. It starts with partitioning the dataset to a list. The key argument is `uniqueID` which should be a variable in the design matrix. `uniqueID` is used to pair together RNA and RPF data from each replicate.
+
+
+```{r}
+rr_LMCN.v2.split <- Ribolog::partition_to_uniques(x = rr_LMCN.v2[,-1], design = sample_attributes_LMCN, uniqueID = "replicate_name")
+names(rr_LMCN.v2.split)
+print(rr_LMCN.v2.split$CN34_r1[, c(1:10)])
+```
+
+Second, TER testing is performed using the `logit_seq` function between all pairs of samples with the same `uniqueID` (similar to the TER_all_pairs function used in module 3, but here we only perform the test on the homo pairs). Samples with the same `groupID` are considered replicates of the same biological sample. For more details on how to correctly specify these arguments, check out the function documentation. 
+
+
+```{r}
+rr_LMCN.v2.enz <- Ribolog::generate_ENZ(x = rr_LMCN.v2.split, design = sample_attributes_LMCN, outcome = "read_type", uniqueID = "replicate_name", groupID = "cell_line", adj_method='none')
+
+```
+
+
+We can explore the empirical null and check its best fit to a normal distribution. 
+
+ 
+```{r warning = FALSE, message = FALSE}
+Ribolog::visualise_empirical_null(rr.v2.enz, plot_density=TRUE)
+```
+
+```{r warning = FALSE, message = FALSE}
+Ribolog::fit_empirical_null(rr.v2.enz, "norm")
+```
+Mean is close to zero but variance is much larger than 1 ($\sigma^2=(1.2984)^2=1.6860$), which indicates fatter tails. Testing the significance of z scores using this distribution will yield larger p-values than using the standard normal (which is the default in regression functions including `logit_seq`).
+
+## 5.1.2. Perform hypothesis testing using empirical null
+
+We need two pieces of input to perform empirical significance testing: 1) The test statistic: z values from output of regular logistic regression (`logit_seq` function), and 2) The empirical null distribution which we generated above.
+
+```{r}
+fit1_LMCN_long <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis, feature_list =  as.vector(rr_LMCN.v2$transcript), long_output = TRUE, adj_method='none')
+colnames(fit1_LMCN_long)
+```
+
+The `long_output=TRUE` option it specified when running the `logit_seq` function to produce the `z` and `std` columns in addition to the `Estimate` (regression coefficient) and the `Pr` columns. We are not particularly interested in the intercept, so we do the empirical null testing only on the lung_metastasis z vector. 
+
+
+```{r message = FALSE, warning = FALSE}
+fit1_LMCN_ENZ_p <- Ribolog::test_ENZ(x = fit1_LMCN_long, enz = rr_LMCN.v2.enz, zcols = 7)
+```
+
+
+As a matter of interest, we can compare the p-values from theoretical and empirical null hypothesis testing:
+
+
+```{r message = FALSE, warning = FALSE}
+plot(fit1_LMCN_ENZ_p$Pr...z.._lung_metastasisY,
+     fit1_LMCN_ENZ_p$ep_lung_metastasisY,
+     log = "xy",
+     xlim = c(1e-40,1),
+     pch = 21, cex = 0.1, col = "darkblue",
+     xlab = "Lung metastasis theoretical P", ylab = "Lung metastasis empirical P",
+     main = "Comparison of theoretical and empirical p-values \n LMCN data")
+abline(0,1, col = "red", lty = 2)
+
+```
+
+The red line marks `x=y`. Empirical null testing is much more conservatives i.e. it generates substantially larger p-values which is consistent with the std>1 of the EN distribution. 
+
+
+
+# 5.2. Meta-analysis: combining correlated test results
+
+The function `meta_test` is at the core of this module. Statistically, it is a way of combining results of correlated (non-independent) tests (based on: Makambi, K. 2003. Weighted inverse chi-square method for correlated significance tests. *Journal of Applied Statistics*, 30(2): 225-234). The intuitive idea behind this method is that if two sets of results are highly correlated, adding the second to the first will not add much independent information; therefore, it should not change the significance of the results by much. For example, replicates of the same biological sample are expected to be well correlated. Adding more replicates will improve the precision of estimates, but will not provide biologically independent corroboration of conclusions. 
+
+In molecular biology, and more specifically ribosome profiling data analysis, a meta-analysis tool can be used for several purposes:
+
+- Combining results of association tests between the same predictor and response variables on different datasets. If the raw data cannot be pooled due to difference in technology, batch effects, etc., `meta_test` provides a means to combine their test summary statistics (effect size, p-value, and preferably also standard deviation of the effect size estimate and the test statistic e.g. z score). This application is closest to the traditional definition of meta-analysis. 
+
+- Creating a consensus between test results from different methods on the same dataset. Researchers very often have to choose among several analytical tools, each with their unique strengths and weaknesses. Results from these tools are generally similar (correlated) but not identical, as often seen in method comparisons and benchmarks. `meta_test` offers the option to apply multiple rival methods to the same dataset and merge their output to create a consensus.
+
+- Analyzing ribosome profiling data with Ribolog, it is possible to perform the TER test using a single replicate from each biological sample. In a replicated dataset, one can run multiple equivalent tests. For example, if the data consists of two samples A and B, each replcated twice, the general comparison of A and B can be done two different ways: 1) Run all the samples and replicates in one model, as demonstrated in module 4. 2) Run the test rep-by-rep (A1 vs. B1, A2 vs. B1, A1 vs. B2, A2 vs. B2), and then combine these four equivalent and correlated sets of results using the `meta_test` function. We used these rep-by-rep test results as a measure of reproducibility in QC (module 3). Now, we will learn how to combine them.
+
+*Note:* We will showcase the `meta_test` function using ribosome profiling data; however, it can be used to combine correlated test statistics from gene expression or any other -omic tests.
+
+
+## 5.2.1. Example 1: same biological question, separate datasets
+
+Imagine that we are interested in translational changes due to lung metastasis. Remember that the LMCN dataset consists of two non-metastatic and two metastatic cell lines. Because these four cell lines were processed in the same lab and using the same protocols in reality, we can put them in the same dataset and test for $TE \ vs.\ lung\_metastasis$. Alternatively, imagine a scenario where two labs perform RP experiments using different protocols. One lab uses CN34 and its metastatic derivative LM1a; the other lab uses MDA and its metastatic derivative LM2. If differences in experimental technology preclude pooling of the raw data, we cannot run the TER test on them together. But we can run the `logit_seq` test separately on each dataset and then comnbine the results using the `meta_test` function. Remember to choose the long output option when running the `logit_seq` function. In the end, we will compare the pooled dataset test results and the meta-analysis test results to ascertain how succesfully the meta-analyis outcome reproduces the gold standard pooled outcome. 
+
+
+```{r}
+# Extract the appropriate columns from the RPF dataset and the design matrix for the CN34-LM1a and MDA-LM2 pairs of cell lines, as if they had been produced independently.
+fit1a_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,c(2:5,10:13)],
+                                sample_attributes_LMCN[c(1:4,9:12), ],
+                                read_type ~ lung_metastasis,
+                                feature_list = as.vector(rr_LMCN.v2$transcript),
+                                long_output = TRUE,
+                                adj_method = 'none')
+
+fit1b_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,c(6:9,14:17)],
+                                sample_attributes_LMCN[c(5:8,13:16), ],
+                                read_type ~ lung_metastasis,
+                                feature_list = as.vector(rr_LMCN.v2$transcript),
+                                long_output = TRUE,
+                                adj_method = 'none')
+```
+
+```{r linewidth=60}
+# Discard the intercept columns which are not interesting from the fit object. Place the lung_metastasis components of the tests to be combined in a list. 
+fit1ab_LMCN_list <- list("fit1a_LMCN" = fit1a_LMCN[, c(5:8)], "fit1b_LMCN" = fit1b_LMCN[, c(5:8)])
+
+# Combine the tests using the `meta_test` function.
+fit1ab_LMCN_meta <- Ribolog::meta_test(fit1ab_LMCN_list, feature_list = rr_LMCN.v2$transcript)
+head(fit1ab_LMCN_meta, n=2)
+
+```
+
+The column `meta_beta` and `meta_p` are the meta-analysis log TER and p-value, respectively. Now, we compare this outcome to the original results (pooled data) and the subsetted test results (run separately for each pair of cell lines).
+
+```{r}
+# Pooled data
+fit1_LMCN_long <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis, feature_list =  as.vector(rr_LMCN.v2$transcript), long_output = TRUE, adj_method = 'none')
+head(fit1_LMCN_long, n=2)
+```
+
+
+```{r}
+# Place the log TERs from subsetted, pooled and meta tests in a data frame and check their correlation.
+LMCN_betas <- data.frame(fit1_LMCN_long[,"Estimate_lung_metastasisY"], fit1a_LMCN[,"Estimate_lung_metastasisY"], fit1b_LMCN[,"Estimate_lung_metastasisY"], fit1ab_LMCN_meta$meta_beta)
+names(LMCN_betas) <- c("beta_fit1_pooled", "beta_fit1a", "beta_fit1b", "meta_beta")
+head(LMCN_betas, n=2)
+
+```
+
+```{r}
+beta_cor1 <- Hmisc::rcorr(as.matrix(LMCN_betas), type = "pearson")
+beta_cor1$r
+beta_cor1$P
+beta_cor2 <- Hmisc::rcorr(as.matrix(LMCN_betas), type = "spearman")
+beta_cor2$r
+beta_cor2$P
+
+```
+
+```{r}
+# Place the p-values from subsetted, pooled and meta tests in a data frame and check their correlation.
+LMCN_ps <- data.frame(fit1_LMCN_long[,8], fit1a_LMCN[,8], fit1b_LMCN[,8], fit1ab_LMCN_meta$meta_p)
+names(LMCN_ps) <- c("p_fit1_pooled", "p_fit1a", "p_fit1b", "meta_p")
+head(LMCN_ps, n=2)
+```
+
+```{r}
+p_cor1 <- Hmisc::rcorr(as.matrix(LMCN_ps), type = "pearson")
+p_cor1$r
+p_cor1$P
+p_cor2 <- Hmisc::rcorr(as.matrix(LMCN_ps), type = "spearman")
+p_cor2$r
+p_cor2$P
+
+```
+
+Correlograms of the Spearman correlations are shown below:
+
+```{r}
+print(corrplot::corrplot(beta_cor2$r, method="color", addCoef.col = "white"))
+print(corrplot::corrplot(p_cor2$r, method="color", addCoef.col = "white"))
+
+```
+
+The meta-analysis captures the pooled patterns faithfully, and substantially more accurately than each subset alone. The Spearman correlation coefficients between the pooled and the meta-analysis output are 0.99 for effect size (log TER) and 0.85 for p-values. Therefore, where direct pooling of raw data is impossible, this functions offers a reliable means of producing a consensus between the two results.
+
+*Note:* The standard error column provided by the `logit_seq` long output, e.g. column 2 of fit1_LMCN_long, is used by `meta_test` to determine the weight of each test in the combination. Weights are calculated so that they are proportional to the inverse of their corresponding variance ($SE^-2$), and add up to 1 overall. If the user wishes to assign weights differently, they can replace the SE column with the inverse square root of the desired weight terms. 
+
+*Note:* Most regression fitting algorithms calculate a standard deviation (SD) for each coefficient (beta) and then calculate a z staistic by dividing each coefficient by its SD. P-value is then obtained by comapring this z statistic to the standard normal distribution. These are called Wald tests. SD and z are usually not reported in the regression output because they can be recovered easily from beta and p. Z is required for empirical null testing, however. And, both SD and z are required for the correlated tests meta-analysis. Function `add_sd_z` adds these two components to the (beta & p) outputs so that they can be used as input to functions such as `test_ENZ` and `meta_test`. Check the `add_sd_z` function documentation for details. If p-values were calculated from a distribution other than standard normal, the `add_sd_z` function should not be technically used. The user must add the SD and z columns obtained by apprporiate methods to the input matrix manually.
+
+*Note:* The combined (meta) effect size is calculated as the weighted average of individual test effect sizes. If an unweighted average is desired, set `effect_wt = FALSE`.
+
+
+## 5.2.2. Example 2: Merging rep-by-rep test results
+
+Now, we perform meta-analysis for a different purpose. We will compare the CN34 and LM1a cell lines replicate-by-replicate, and then combine the results.
+
+
+```{r}
+# Extract the CN34 and LM1a columns from the RPF dataset and the design matrix.
+fit_CN34_LM1a_rbr <- Ribolog::TER_all_pairs(x = rr_LMCN.v2.split[1:4], design = sample_attributes_LMCN[c(1:4, 9:12),], outcome = "read_type", uniqueID = "replicate_name", groupID = "cell_line", adj_method = 'none')
+names(fit_CN34_LM1a_rbr)
+```
+
+
+The first and last elements of the list are not of interest for this task, as they compare reps of the same cell line. Also, each element is a list in itself containing additional information which are used in the QC pipeline (module 3). We need to extract the `fit` component for meta-analysis.
+
+
+```{r}
+fit_CN34_LM1a_rbr.2 <- lapply(fit_CN34_LM1a_rbr[c(2:5)], function(x) x[["fit"]][, c(5:8)])
+fit_CN34_LM1a_meta <- Ribolog::meta_test(fit_CN34_LM1a_rbr.2, comp_sym = TRUE, feature_list = rr_LMCN.v2$transcript)
+head(fit_CN34_LM1a_meta, n=2)
+```
+
+*Note:* We used a new optional argument here, `comp_sym = TRUE`. This means that the correlation matrix among test statistics was calculated under the compound symmetry model. Compound symmetry is a covariance structure often encountered in repeated measurement ANOVA, where a single common correlation coefficient is assumed between all measurements of a quantity on the same subject. In a ribosome profiling dataset, each transcript plays the role of a subject. If the differences in RPF and RNA counts among replicates of the same biological sample are due to experimental variance alone, i.e. there are no special biases or bad samples, a single correlation coefficient describes the relationship of all of the equivalent tests arising from rep-by-rep comparisons. In other words, the compound symmetry correlation coefficient  describes the average similarity of all pairs of equivalent tests in the dataset. When the purpose of meta-analysis is combining equivalent tests from rep-by-rep comparisons, we recommend using this option. 
+
+Comparing to default TER test results:
+
+```{r}
+fit_CN34_LM1a <- Ribolog::logit_seq(x = rr_LMCN.v2[, c(2:5, 10:13)], design = sample_attributes_LMCN[c(1:4, 9:12), ], read_type ~ cell_line, feature_list = rr_LMCN.v2$transcript, adj_method = 'none')
+
+head(fit_CN34_LM1a, n=2)
+```
+
+```{r}
+cor.test(fit_CN34_LM1a[, 3], fit_CN34_LM1a_meta$meta_beta, method = "spearman")
+plot(fit_CN34_LM1a[, 3], fit_CN34_LM1a_meta$meta_beta,
+     xlab = "Default log TER", ylab = "Meta log TER", pch = 19, col = "darkgreen", cex = 0.1)
+abline(0, 1)
+
+```
+
+```{r}
+cor.test(fit_CN34_LM1a[, 4], fit_CN34_LM1a_meta$meta_p, method = "spearman")
+plot(fit_CN34_LM1a[, 4], fit_CN34_LM1a_meta$meta_p, 
+     xlab = "Default TER p", ylab = "Meta TER p", pch = 19, col = "darkred", cex = 0.1)
+abline(0, 1)
+```
+
+The effect sizes are 0.98 and the p-values are 0.86 correlated between the default (all replicates pooled) and the rep-by-rep followed by meta-analysis outputs. 

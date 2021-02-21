@@ -1,0 +1,250 @@
+---
+title: "RIBOLOG Module 3: Quality control of ribosome profiling data"
+author: "Hosseinali Asgharian"
+date: "Sep. 2019"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{RIBOLOG Module 3: Quality control of ribosome profiling data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+The **QC** module includes functions to check the quality of ribosome profiling data focusing mainly on the reproducibility of translational efficiency (TE) among replicates. Tools for general QC of sequencing data (e.g. FASTQC) or 3-base periodicity of ribo-seq libraries (borrowed from the **riboWaltz** package and covered in module 1) are not repeated here. 
+
+Three ribosome-profiling-specific QC tools are provided in this module:
+
+```{r include = FALSE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+opts_chunk$set(root.dir = "C:/Science/Projects/Ribosome profiling/Ribolog")
+
+```
+
+# TEST 1: Principal component analysis (PCA) of RNA, RPF and translational efficiency
+
+The aim of performing PCA on a ribosome profiling data set is to check whether replicates of the same biological state or sample cluster together. In unreplicated datasets, one can check whether conditions that are expected to be more similar occupy nearby spots. This can be done on (normalized) RNA counts, RPF counts or their ratio known as translational efficiency $TE=\frac{RPF}{RNA}$ which is the main output of interest in ribosome profiling experiments.   
+
+## 1.1. Filter out low count transcripts
+A minimum read count cutoff is usually applied to sequencing data to remove extremely low count features which would yield unreliable results. To demonstrate,  we filter our dataset to keep only transcripts with RNA>=5 in all samples and *average* RPF>=2 across samples. This can be done using the `min_count_filter` function. You can choose methods between "all" or "average" and apply different cutoffs until you find a value setting that produces acceptable output in terms of replicate consistency. 
+
+*Note:* Replicate consistency is a necessary QC condition, not a sufficient one, because it reflects the collective behavior of all transcripts. As most studies aim to draw conclusions about individual transcripts or genes, extremely low count features should be avoided even if they do not diminish  reproducibility among replicates.
+
+
+```{r}
+# Filter for RNA>=5 in all samples
+rr_LMCN.v1 <- Ribolog::min_count_filter(rr_LMCN, mincount = 5, columns = c(2:9), method = "all") 
+# Filter for average RPF>=2 across samples
+rr_LMCN.v2 <- Ribolog::min_count_filter(rr_LMCN.v1, mincount = 2, columns = c(10:17), method = "average") 
+dim(rr_LMCN)
+dim(rr_LMCN.v1)
+dim(rr_LMCN.v2)
+
+```
+
+## 1.2. Standardize the data
+PCA is a statistical procedure that decomposes the total variance in data to several orthogonal (not linearly correlated) components. The variance in a *transcript x sample* matrix of read counts originates not only from differences among samples, but also from differences of (mean) counts across transcripts (there is also an interaction term but we will not deal with that just now). The output of PCA is sensitive to the scale of input numbers. If PCA is performed on the raw RNA counts, the pattern will be driven disproportionately by highly expressed genes. The same is true about RPF counts or TE values and highly translated transcripts. It is therefore customary in some applications to center or standardize the data before performing the PCA. Centering the data means subtracting the row mean or column mean from each element. Standardization means dividing the centered data by the corresponding row or column standard deviation. The choice of row- or column- standardization depends on the data type and structure, and the aim of the study. We perform PCA to visualize similarities and distances among samples. Row centering will bring the mean count for each transcript to zero which means that the differences in the average read counts of transctipts will not be incorporated into the total variance. Row standardization accomplishes the same goal but also guranatees that each transcript adds exactly one unit of variance to the variance of the *transcript x sample* matrix. Thus, all transctipts contribute equally to the PCA pattern. 
+
+First, we need to create a TE data set by dividing RPF columns by their RNA counterparts from the same sample. This is done using the `create-te` function:
+
+```{r}
+te_LMCN.v2 <- Ribolog::create_te(rr_LMCN.v2, idcolumns = 1, rnacolumns = c(2:9), rpfcolumns = c(10:17))
+head(te_LMCN.v2)
+```
+
+*Note:* The order of samples must be the same in RNA and RPF columns.
+
+Next step is centering or standardizing the data. We demonstrate this for the TE parameter, but the same procedure can be performed on RNA and RPF counts. Needless to say, RNA and RPF counts must be centered or standardized separately using the `columns` argument.
+
+```{r}
+
+te_LMCN.v2.cent <- row_center(te_LMCN.v2, columns = c(2:9))
+te_LMCN.v2.stnd <- row_standardize(te_LMCN.v2, columns = c(2:9))
+
+```
+
+How should one decide whether to run PCA on the raw, centered or standandardized data set?  Here is a general guideline: If you would like all genes/transcripts to weigh in equally, use a standardized or centered data set. If you would like to give more weight to highly expressed or translated genes/transcripts, do not center or standandardize.
+
+*NOTE:* Centering and standardization are performed merely for visulization, not translational efficiency ratio (TER) analysis. The input to the `logit_seq` function which performs that task (module 4) is a data set that has been normalized and filtered to remove low-count transcripts, but not centered or standardized.
+
+# 1.3. Produce the PCA plots
+Only the numerical part of the data set is fed into the `pca_qc` function which means that the ID column(s) must be manually excluded. The argument `n` specifies the number of PCs to be plotted. Below, we compare the PCA pattern from the original, low-count removed, row-centered and row-standardized datasets:
+
+```{r}
+# The orignial data set containing low count transcripts (infinite values generated by division by zero must be removed before PCA) 
+te_LMCN <- Ribolog::create_te(rr_LMCN, idcolumns = 1, rnacolumns = c(2:9), rpfcolumns = c(10:17))
+te_LMCN.fin <- te_LMCN[is.finite(rowSums(te_LMCN[, -1])),]
+
+# The sample attributes is a sheet of metadata for each sample. 
+# If you are using a csv with text metadata, make sure to use the option stringsAsFactors=TRUE
+# sample_attributes <- read.csv("sample_attributes_LMCN.csv", header = TRUE, stringsAsFactors=TRUE)
+
+sample_attributes_LMCN <- read.xlsx("./Data/sample_attributes_LMCN.xlsx", sheetIndex = 1, header = TRUE)
+Ribolog::pca_qc(te_LMCN.fin[, -1], n = 2, ID = sample_attributes_LMCN$cell_line[c(1:8)])
+
+```
+
+The optional `ID` argument of the `pca_qc` function is a vector used to color-code the samples on the PCA plot. Each element of this vector provides the ID value of the corresponding sample in the input data (argument `x`, *te_LMCN.fin* here) in the same order. Samples with the same `ID` value will be colored the same. It is often convenient to obtain this vector from an appropriate variable in the design matrix which describes the attributes of samples in the dataset, *sample_attributes_LMCN$cell_line* here. Only the first 8 elements are included because the next 8 elements are their exact duplicates (first 8 elements describe the RNA samples and second 8 elements describe corresponding RPF samples).    
+
+```{r}
+print(sample_attributes_LMCN)
+```
+
+
+```{r}
+# Low count transcripts filtered out.
+Ribolog::pca_qc(te_LMCN.v2[,-1], n = 2, ID = sample_attributes_LMCN$cell_line[c(1:8)])
+
+```
+
+```{r}
+# Low count transcripts filtered out, data row-centered.
+Ribolog::pca_qc(te_LMCN.v2.cent[,-1], n = 2, ID = sample_attributes_LMCN$cell_line[c(1:8)])
+
+```
+
+```{r}
+# Low count transcripts filtered out, data row-standardized.
+Ribolog::pca_qc(te_LMCN.v2.stnd[,-1], n = 2, ID = sample_attributes_LMCN$cell_line[c(1:8)])
+
+```
+
+Here are some observations from the above plots:
+
+* The two biological replicates of the non-metastatic lines (CN34 and MDA) cluster together. Reps of the metastatic lines (LM1a and LM2) do not behave so regularly. 
+* Filtering out low count transcripts and centering or standardization remarkably improve the distinction among cell lines and co-clustering of reps.
+* In the filtered and standardized data set, PC1 which explains ~31% of the total variance clearly separates the two metastatic cell lines from the two non-metastatic cell lines.
+
+Even if samples were not sequenced in duplicates, we could still see that metastatic state was a more important determinant of translational landscape than the cell line's origin because the first PC separated metastatic samples from non-metastatic ones. This is the sort of biological insight gleaned from PCA analysis beyond replicate consistency.  
+
+To further investigate why TE of the LM1a and LM2 reps seem somewhat mismacthed, we repeat the PCA on RNA and RPF data:
+
+```{r}
+# Standardize RNA counts
+rr_LMCN.v3 <- row_standardize(rr_LMCN.v2, columns = c(2:9))
+# Standardize RPF counts
+rr_LMCN.v4 <- row_standardize(rr_LMCN.v3, columns = c(10:17))
+# PCA on RNA counts
+Ribolog::pca_qc(rr_LMCN.v4[,c(2:9)], n = 2, ID = sample_attributes_LMCN$cell_line[c(1:8)])
+# PCA on RPF counts
+Ribolog::pca_qc(rr_LMCN.v4[,c(10:17)], n = 2, ID = sample_attributes_LMCN$cell_line[c(1:8)])
+
+
+
+```
+
+
+PC1 separates the metastatic from non-metastatic lines in both RNA and RPF plots. Replicate consistency seems better for RNA compared to RPF which could be due to the larger RNA read counts in general. The mismatch between reps of the two metastatic cell lines appears to originate from their RPF counts.
+
+The above analyses inform our next step (translational efficiency significance testing): There is a clear difference between metatstatic and non-metastatic lines, but the distinction within these groups is not as large or reliable. Therefore, the most biologically relevant analysis would be to compare TE between  metastatic and non-metastatic groups. 
+
+
+# TEST 2: Proportion of null features (non-differentially-translated transcripts)
+
+The `pi0est` function from the **qvalue** package estimates the proportion of null features (vs. alternative features) from the distribution of multiple p-values produced by a test. To demonstrate its use in quality control of ribosome profiling data, we compare the proportion of null features $\pi_0$ from testing TER of CN34 rep 1 vs CN34 rep 2 or a replicate from any other cell line LM1a rep 1. 
+
+The 8th column in the regression output produced by `logit_seq` function contains the p-values of interest (more details in module 4).
+
+```{r message = FALSE, warning = FALSE}
+sample_attributes_LMCN <- read.xlsx("./data-raw/sample_attributes_LMCN.xlsx", sheetIndex = 1, header = TRUE)
+fit_CN34.1_CN34.2 <- Ribolog::logit_seq(rr_LMCN.v2[, c(2,3,10,11)], sample_attributes_LMCN[c(1,2,9,10),], read_type ~ replicate_name, as.vector(rr_LMCN.v2$transcript))
+
+pi0_CN34.1_CN34.2 <- qvalue::pi0est(fit_CN34.1_CN34.2[,8])$pi0
+print(pi0_CN34.1_CN34.2)
+```
+
+```{r message = FALSE, warning = FALSE}
+fit_CN34.1_LM1a.1 <- Ribolog::logit_seq(rr_LMCN.v2[,c(2,4,10,12)], sample_attributes_LMCN[c(1,3,9,11),], read_type ~ replicate_name, as.vector(rr_LMCN.v2$transcript)) 
+
+pi0_CN34.1_LM1a.1 <- qvalue::pi0est(fit_CN34.1_LM1a.1[,8])$pi0
+print(pi0_CN34.1_LM1a.1)
+```
+
+```{r message = FALSE, warning = FALSE}
+fit_CN34.1_LM2.1 <- Ribolog::logit_seq(rr_LMCN.v2[,c(2,6,10,14)], sample_attributes_LMCN[c(1,5,9,13),], read_type ~ replicate_name, as.vector(rr_LMCN.v2$transcript)) 
+
+pi0_CN34.1_LM2.1 <- qvalue::pi0est(fit_CN34.1_LM2.1[,8])$pi0
+print(pi0_CN34.1_LM2.1)
+
+```
+
+```{r message = FALSE, warning = FALSE}
+fit_CN34.1_MDA.1 <- Ribolog::logit_seq(rr_LMCN.v2[,c(2,8,10,16)], sample_attributes_LMCN[c(1,7,9,15),], read_type ~ replicate_name, as.vector(rr_LMCN.v2$transcript)) 
+
+pi0_CN34.1_MDA.1 <- qvalue::pi0est(fit_CN34.1_MDA.1[,8])$pi0
+print(pi0_CN34.1_MDA.1)
+
+```
+
+
+Only 5.4% of transcripts are estimated to be differentially translated when the two CN34 replicates are compared, whereas 22.2%, 28.5% and 20.4% are estimate to be differentially translated between first reps of CN34 vs LM1a, LM2 and MDA, respectively. This is consistent with the PCA output indicating that the two CN34 replicates are more similar to each other than they are to other samples. It also shows that CN34 is more similar to the other non-metastatic line than it is to either of the metastatic ones. Between the two metastatic lines, CN34 is closer to LM1a which originated from it. The proportion of differentially translated transcripts is well below 50% in all tests, indicating that the majority of transcripts are translated somewhat similarly between the compared cell lines.
+
+The proportion of null feature (not differentially translated transcripts) between all pairs of sample replicates can be computed and plotted automatically using the procedure described below.
+
+## 2.1. Convert the RNA-RPF data frame to a sample-by-sample list
+
+The data frame containing RNA and RPF read counts is split to a list based on the values of the parameter `uniqueID`. `uniqueID` is one of the variables in the design matrix which specifies the name of the experimental replicate from which one RNA library and one RPF libray was made. In the case of our LMCN data set, this role is served by the variable `replicate_name`:
+
+```{r echo = FALSE}
+print(sample_attributes_LMCN)
+```
+
+```{r}
+rr_LMCN.v2.split <- Ribolog::partition_to_uniques(x = rr_LMCN.v2[,-1], design = sample_attributes_LMCN, uniqueID = "replicate_name")
+names(rr_LMCN.v2.split)
+print(rr_LMCN.v2.split$CN34_r1[,c(1:10)])
+```
+
+For the sake of brevity, only count data for the first 3 transcripts are printed out. Notice that the design attributes of each sample is merged with its counts data. This will make the future step of TER significance testing more straightforward.
+
+Input to the `partition_to_uniques` functions must contain only the RNA/RPF data. In the example above, the first column is excluded because it listed transcript IDs. Order of the RNA/RPF columns in the input data matrix must correspond to the rows in the design matrix (compare the order of elements in the `sample_attributes_LMCN` column `sample_name` with the order of `rr_LMCN.v2` data columns):
+
+```{r}
+names(rr_LMCN.v2[,-1])
+```
+
+## 2.2. Perform translational efficiency ratio (TER) tests on all pairs of samples
+
+With n=8 samples (elements of the split list), C(n,2)=28 pairwise TER tests are performed. At this stage, we need an additional important argument `groupID` which -like `uniqueID`- is another variable or column from the design matrix. All samples having the same `groupID` are considered replicates of the same biological material. In the LMCN dataset, the most sensible choice for groupID is "cell_line" which takes four values "CN34", "LM1a", "LM2" or "MDA".  
+
+```{r cache = TRUE}
+rr_LMCN.v2.pairwise <- Ribolog::TER_all_pairs(x = rr_LMCN.v2.split, design = sample_attributes_LMCN, outcome = "read_type", uniqueID = "replicate_name", groupID = "cell_line", adj_method = 'none')
+```
+
+Let us look more closely into the content of two elemets of this 28-element list:
+
+```{r}
+str(rr_LMCN.v2.pairwise$CN34_r1_vs_CN34_r2)
+str(rr_LMCN.v2.pairwise$CN34_r1_vs_LM1a_r1)
+```
+
+```{r}
+saveRDS(rr_LMCN.v2.pairwise, "./data-raw/rr_LMCN.v2.pairwise.rds")
+```
+
+
+CN34_r1 and CN34_r2 are replicates of the same biological material, cell line CN34. They have the same groupID "CN34"; therefore, they constitute a homogeneous or *"homo"* pair. On the other hand, CN34_r1 and LM1a_r1 have different groupIDs "CN34" and "LM1a", and are a heterogeneous or *"hetero"* pair. The fourth element of the list (`fit`) is the standard output of the TER test produced by the `logit_seq` function (see module 4 for more details). 
+
+## 2.3. Estimate and plot the proportion of null features 
+
+We estimate the proportion of null features designated $\pi_0$ from each one of the C(n,2) test p-value vectors using the Storey method implemented in the **qvalue** package. Then, we plot of a histogram of $\pi_0$s color-coded for homo and hetero pairs.
+
+```{r}
+pi0df_LMCN <- Ribolog::pairs2pi0s(rr_LMCN.v2.pairwise)
+print(pi0df_LMCN)
+```
+
+Expectedly, most of the hetero pairs (brick red) show lower $\pi_0$ compared to the homo pairs (green). There are four hetero pairs that cluster with homo pairs. Inspection of the data frame shows that these four involve comparisons of the LM1a and LM2 cell lines. This is consistent with the near identicality of these samples demonstrated by their PCA patterns in the previous section.   
+
+
+# TEST 3: Correlogram of equivalent test statistics
+
+The Ribolog TER test can be performed on single replicates per biological sample. In a replicated experiment such as (sample A: reps A1 and A2 + sample B: reps B1 and B2), correlation coefficients of regression z scores from equivalent tests i.e. A1 vs B1, A2 vs B1, A1 vs B2 and A2 vs B2 can be used to evaluate replicate homogeneity and help determine the minimum advisable number of replicates to achieve reproducibility of conclusions. 
+
+```{r results='hide'}
+rr_LMCN.v2.correlograms <- pairs2correlograms(rr_LMCN.v2.pairwise)
+
+```
+
+The z scores of equivalent tests are 60-88% correlated in all pairwise comparisons except for LM1a vs. LM2. The highest correlation is seen between the equivalent CN34 vs MDA tests. This is consistent with the observations from PCA and $\pi_0$ plots. It highlights the fact that CN34 replicates and MDA replicates are sufficiently similar but that is not the case with LM1a and LM2. This is either an indication of issues in the experimental sample preparation steps of these cell lines or due to higher biological stochasticity of translational patterns in metastatic cell lines. The more highly variable biological samples ought to be represented by more replicates to achieve reproducibility. 
+
+If the QC measures cause concern, you can go back to previous steps to remove bad samples and/or try alternative transcript filtering strategies; then reproduce the QC measures until a satisfactorily reliable data set is obtained. The cleaned up and finalized data set will be used for the main TER analysis laid out in module 4.

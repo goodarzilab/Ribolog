@@ -15,6 +15,7 @@
 #' @import gdata
 #' @import nlme
 #' @import EnhancedVolcano
+#' @import fitdistrplus
 
 
 
@@ -58,13 +59,49 @@ min_count_filter <- function(x, mincount, columns, method="all"){
 #' These columns may contain the gene/transcript ID or any metadata that need to be preserved.
 #' @param rnacolumns A vector specifying the columns containing RNA counts
 #' @param rpfcolumns A vector specifying the columns containing RPF counts
+#' @param allow_zero_rpf A boolean allowing the total RPF counts of a transcript to be 0
 #' @details Translational efficiency is calculated as RPF/RNA.
 #' The number and order of samples must be the same in RNA and RPF columns.
 #' @return A data frame containing the original ID columns and the calculated TE columns.
 #' @examples
 #' te_LMCN <- create_te(rr_LMCN.v2, 1, c(2:9), c(10:17))
 #' @export
-create_te <- function(x, idcolumns=NULL, rnacolumns, rpfcolumns){
+create_te <- function(x, idcolumns=NULL, rnacolumns, rpfcolumns, allow_zero_rpf=FALSE){
+
+  total_rpf_counts <- as.data.frame(rowSums(x[,rpfcolumns]))
+  total_rna_counts <- as.data.frame(rowSums(x[,rnacolumns]))
+
+  rownames(total_rpf_counts) <- x$transcript
+  rownames(total_rna_counts) <- x$transcript
+
+  empty_rpf_transcripts <- c()
+  empty_rna_transcripts <- c()
+
+  for (transcript in rownames(total_rpf_counts)) {
+    if (total_rpf_counts[transcript,] == 0 && !allow_zero_rpf) {
+      empty_rpf_transcripts <- c(empty_rpf_transcripts, transcript)
+    }
+
+    if (total_rna_counts[transcript,] == 0) {
+      empty_rna_transcripts <- c(empty_rna_transcripts, transcript)
+    }
+  }
+
+  if (length(empty_rpf_transcripts) > 0 && !allow_zero_rpf){
+
+    warning(sprintf('There are ( %s ) transcripts that have 0 counts across all the RPF samples.You can allow RPF counts
+    to be 0 using allow_zero_rpf=TRUE option or filter them using Ribolog::min_count_filter. These transcripts have been removed for now.', length(empty_rpf_transcripts)))
+    x <- Ribolog::min_count_filter(x, mincount = 5, columns = rpfcolumns, method = "all")
+  }
+
+  if (length(empty_rna_transcripts) > 0){
+
+    warning(sprintf('There are ( %s ) transcripts that have 0 counts across all the RNA samples.You can filter them using Ribolog::min_count_filter.
+    These transcripts have been removed for now.', length(empty_rna_transcripts)))
+    x <- Ribolog::min_count_filter(x, mincount = 2, columns = rnacolumns, method = "average")
+  }
+
+
   y <- data.frame(x[,idcolumns], x[,rpfcolumns]/x[,rnacolumns])
   names(y)[idcolumns] <- names(x)[idcolumns]
   names(y) <- gsub("rpf", "te", names(y))

@@ -47,7 +47,8 @@ Imports:
     seqinr,
     rlist,
     gdata,
-    nlme
+    nlme,
+    fitdistrplus
 Suggests:
     knitr,
     rmarkdown
