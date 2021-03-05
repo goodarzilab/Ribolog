@@ -58,7 +58,7 @@
 #' fit5_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ cell_line, as.vector(rr_LMCN.v2$transcript))
 #' @export
 
-logit_seq <- function(x, design, model, adj_method, feature_list=NULL, long_output = TRUE, , allow_zero_rpf=FALSE){
+logit_seq <- function(x, design, model, adj_method, feature_list=NULL, long_output = TRUE, allow_zero_rpf=FALSE){
   logit_seq_gene <- function(m){
     prep <- data.frame(design,m)
     fit <- suppressWarnings(glm(model, data=prep, family="binomial"(link="logit"), weights = m))

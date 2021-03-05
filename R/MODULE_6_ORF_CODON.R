@@ -77,6 +77,29 @@ glm_deviance_test_p <- function(x){
 
 
 
+#' @title normalize_with_ratios
+#' @description Normalise the data with pre-provided normalisation ratios
+#' @param edf Dataframe output of get_tr_regions()
+#' @param num_samples Number of samples in the dataframe
+#' @return data frame of the normalised transcript counts for each region
+#' @export
+
+normalize_with_ratios <- function(edf, num_samples, normalization_factors){
+  edf <- edf %>% pivot_wider(names_from = sample, values_from = count)
+  edf[is.na(edf)] = 0
+  data_columns <- c(3:(2+num_samples))
+
+  id_names <- names(edf)
+  names(normalization_factors) <- names(edf[,data_columns])
+  normalized_edf <- t(t(edf[,data_columns])/normalization_factors)
+  edf[, data_columns] <- normalized_edf
+  names(edf) <- id_names
+
+  edf <- edf %>%  pivot_longer(all_of(data_columns), names_to = "sample", values_to = "count")
+  return(edf)
+}
+
+
 #' @title tr_region_logit_dev
 #' @description Function to evaluate the overall effect of predictors on transcript region count through a deviance test.
 #' @param data Dataset containing transcript region read counts. This dataset must have a long shape, meaning that there should be only one
