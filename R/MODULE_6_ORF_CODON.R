@@ -38,19 +38,6 @@ get_tr_regions <- function(reads_psite_list){
 
 
 
-#' @title glm_deviance_test_p
-#' @description Calculate the p-value from a deviance test comparing a model to its corresponding null.
-#' @param x Output of a glm run
-#' @return P-value calculated from the chisq test of deviance between the model and its corresponding null.
-#' @export
-
-glm_deviance_test_p <- function(x){
-  p <- pchisq((x$null.deviance - x$deviance), df = (x$df.null - x$df.residual), lower.tail = FALSE)
-  return(p)
-}
-
-
-
 #' @title remove_0_1_region_transcripts
 #' @description Function to remove transcripts with fewer than two active transcript sites from dataset
 #' @param data Dataset containing site read counts. This dataset must have a long shape, meaning that there should be only one
@@ -87,6 +74,7 @@ glm_deviance_test_p <- function(x){
   p <- pchisq((x$null.deviance - x$deviance), df = (x$df.null - x$df.residual), lower.tail = FALSE)
   return(p)
 }
+
 
 
 #' @title tr_region_logit_dev
