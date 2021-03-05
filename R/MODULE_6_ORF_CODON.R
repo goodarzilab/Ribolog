@@ -100,6 +100,54 @@ normalize_with_ratios <- function(edf, num_samples, normalization_factors){
 }
 
 
+
+#' @title replace_low_count_transcripts
+#' @description Function to remove transcripts with low level counts across all three regions
+#' @param edf Dataframe output of get_tr_regions()
+#' @param mincount Minimum average of counts across all three region types
+#' @return data frame of the filtered transcript counts for each region
+#' @export
+
+replace_low_count_transcripts <- function(edf, mincount = 2, method='average'){
+
+    edf <- edf %>% pivot_wider(names_from = psite_region, values_from = count)
+    initial_num <- length(rownames(edf))
+
+    edf <- Ribolog::min_count_filter(edf, 2, c(3:5), method="average")
+    final_num <- length(rownames(edf))
+
+    print(paste('Number of records filtered out:', initial_num - final_num))
+    edf <- edf %>%  pivot_longer(c(3:5), names_to = "psite_region", values_to = "count")
+    return(edf)
+}
+
+
+
+#' @title remove_low_levels
+#' @description Function to remove transcripts with not enough data to run a regression
+#' @param edf Dataframe output of normalised and filtered counts for transcript and psite region
+#' @param model Intended model to be used in the regression
+#' @return data frame of the filtered transcript counts for each region
+#' @export
+
+remove_low_levels <- function(xd, model){
+    initial_num <-  length(unique(xd$transcript))
+    level_counts <- c()
+    for (variable in all.vars(model) ) {
+        level_counts[[variable]] <- by(xd, xd[,'transcript'], function(y) length(unique(y[[variable]])))}
+
+    level_counts <- do.call(cbind, level_counts)
+    level_counts <- as.data.frame(level_counts) %>% filter_all(all_vars(. > 1))
+
+    xd <- xd[xd$transcript %in% rownames(level_counts), ]
+
+    print(paste0( initial_num - length(unique(xd$transcript)),
+        " transcripts were removed because there is less than 2 contrasting features in the variables of the model."))
+    return(xd)
+}
+
+
+
 #' @title tr_region_logit_dev
 #' @description Function to evaluate the overall effect of predictors on transcript region count through a deviance test.
 #' @param data Dataset containing transcript region read counts. This dataset must have a long shape, meaning that there should be only one

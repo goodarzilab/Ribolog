@@ -121,7 +121,7 @@ codon_usage_psite_rW <- function(data, annotation, sample, site = "psite",
             names(temp_sequences) <- tstrsplit(names(temp_sequences), refseq_sep, fixed = TRUE, keep = 1)[[1]]
           }
           exon <- suppressWarnings(GenomicFeatures::exonsBy(txdbanno, by = "tx", use.names = TRUE))
-          exon <- as.data.table(exon[unique(names(exon))])
+          exon <- data.table::as.data.table(exon[unique(names(exon))])
           sub_exon_plus <- exon[as.character(seqnames) %in% names(temp_sequences) & strand == "+"]
           sub_exon_minus <- exon[as.character(seqnames) %in% names(temp_sequences) & strand == "-"
                                  ][, new_end := Biostrings::width(temp_sequences[as.character(seqnames)]) - start + 1
