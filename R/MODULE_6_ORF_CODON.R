@@ -181,3 +181,122 @@ tr_region_logit_dev <- function(data, model, design = NULL, sample_ID = NULL, ad
 
   return(dtest_gfitx.df)
 }
+
+
+
+#' @title tr_region_multi_logit
+#' @description Function to evaluate the overall effect of predictors on transcript region count through multinomial regression.
+#' @param data Dataset containing transcript region read counts. This dataset must have a long shape, meaning that there should be only one
+#' column containing read counts (and it MUST be named "count").
+#' Other sample attributes beyond sample ID may be recorded in additional variables in this dataset, or provided separately through a design matrix
+#' and a key variable (e.g. sample ID) connecting the \code{data} and \code{design} matrices.
+#' @param model Regression model describing the dependence of region counts on sample attribute(s).
+#' @param design (optional) Design matrix. A matrix describing sample attributes which can be used as predictors in the regression model.
+#' @param sample_ID (optional) A key variable connecting the counts dataset (\code{data}) and the design matrix.
+#' @param output A string either 'short' or 'long' to denote where the user wants the extra stats beyond p-values and logFC.
+#' @param adj_method P-value adjustment method.
+#' Options: "qvalue", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".
+#' "qvalue" calls the \emph{qvalue} package. Other methods are from base R.
+#' @return
+#' Multinomial test statistics for each transcript region
+#' @export
+
+tr_region_multi_logit <- function(data, model, design, sample_ID, output = "short", adj_method = 'none'){
+  data <- remove_0_1_region_transcripts(data)
+  xd <- merge(data, design, by = sample_ID)
+  xd <- droplevels(xd)
+  xd <- xd[!is.na(xd$count),]
+  xd <- remove_low_levels(xd, model)
+  xd <- droplevels(xd)
+  xd$psite_region <- factor(xd$psite_region, levels = c('cds', '3utr', '5utr'))
+
+  fitx <- suppressWarnings(by(xd, xd$transcript, function(y) nnet::multinom(
+      as.formula(Reduce(paste, deparse(model)), env = new.env()), data = y, weight = count, trace=FALSE)))
+
+  sfitx <- suppressWarnings(lapply(fitx, function(x) summary(x)))
+  sfitxb <- lapply(sfitx, function(x) x$'coefficients')
+  sfitxse <- lapply(sfitx, function(x) x$'standard.errors')
+  sfitxz <- lapply(sfitx, function(x) x$'coefficients' / x$'standard.errors')
+  sfitxp <- lapply(sfitxz, function(x) (1 - pnorm(abs(x), 0, 1))*2)
+
+  sfitxb_df <- do.call(rbind.data.frame, sfitxb)
+  names(sfitxb_df) <- paste0("b.", names(sfitxb_df))
+
+  sfitxse_df <- do.call(rbind.data.frame, sfitxse)
+  names(sfitxse_df) <- paste0("se.", names(sfitxse_df))
+
+  sfitxz_df <- do.call(rbind.data.frame, sfitxz)
+  names(sfitxz_df) <- paste0("z.", names(sfitxz_df))
+
+  sfitxp_df <- do.call(rbind.data.frame, sfitxp)
+  names(sfitxp_df) <- paste0("p.", names(sfitxp_df))
+
+  if (output == "short") {
+    sfitx_com <- data.frame(cbind(transcript = sfitxb_df[,1], sfitxb_df[,-1], sfitxp_df))
+  } else if (output == "long") {
+    sfitx_com <- data.frame(cbind(transcript = sfitxb_df[,1], sfitxb_df[,-1], sfitxse_df, sfitxz_df, sfitxp_df))
+  }
+
+  output_df <- {}
+
+  subset <-  sfitx_com[grepl('3utr', rownames(sfitx_com), fixed=TRUE),]
+  rownames(subset) <- subset$transcript
+  subset$transcript <- NULL
+
+  subset_5 <-  sfitx_com[grepl('5utr', rownames(sfitx_com), fixed=TRUE),]
+  rownames(subset_5) <- subset_5$transcript
+  subset_5$transcript <- NULL
+
+
+  if (output == "short"){
+    subset <- Ribolog::adj_TER_p(subset, pcols = c(3:4), adj_method = adj_method)
+    subset_5 <- Ribolog::adj_TER_p(subset_5, pcols = c(3:4), adj_method = adj_method)
+  } else if (output == "long") {
+    subset <- Ribolog::adj_TER_p(subset, pcols = c(7:8), adj_method = adj_method)
+    subset_5 <- Ribolog::adj_TER_p(subset_5, pcols = c(7:8), adj_method = adj_method)
+  }
+
+  output_df[['3utr']] <- subset
+  output_df[['5utr']] <- subset_5
+
+  return(output_df)
+}
+
+
+
+#' @title visualize_orf_usage
+#' @description Function to visualise the data for 3'UTR and 5'UTR usage
+#' @param subset list of two datasets containing transcript region read counts for 5utr and 3utr
+#' @param log_fold_change data column denoting the log fold change
+#' @param p_val_column data column denoting the p-value
+#' @param region A key variable denoting 3utr or 5utr
+#' @param pCutoff A cutoff value for the p-values on the volcano plot
+#' @param FCcutoff A cutoff value for the log fold change on the volcano plot
+#' @param xlim A range for the log fold change on the volcano plot
+#' @param ylim A range for the p-values on the volcano plot
+#' @param gene_mapper A dataframe containing transcripts and gene names
+#' @return
+#' Volcano plot figure
+#' @export
+
+visualize_orf_usage  <- function(subset, log_fold_change, p_val_column, region,
+                                 pCutoff=0.01, FCcutoff=1.5, xlim=c(-5,5), ylim=c(0,50), gene_mapper=NULL) {
+
+    subset <- subset[[region]]
+
+    if (!is.null(gene_mapper)){
+
+        if (!('transcript' %in% colnames(gene_mapper) && 'gene_name' %in% colnames(gene_mapper))) {
+            stop('The gene mapper specified does not have a transcript or a gene_name column.')}
+
+        rownames(gene_mapper) <- gene_mapper$transcript
+        rownames(subset) <- gene_mapper[rownames(subset),]$gene_name
+    }
+
+    EnhancedVolcano::EnhancedVolcano(subset, lab = rownames(subset),
+                                     x=log_fold_change, xlab= 'Ln Fold Change',
+                                     y=p_val_column, ylab= '- Log10 P_val',
+                                     title=paste0('Volcano plot for usage of ', region),
+                                     pCutoff=pCutoff, FCcutoff=FCcutoff,
+                                     xlim=xlim, ylim=ylim)
+}
