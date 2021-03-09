@@ -16,6 +16,7 @@
 #' @import nlme
 #' @import EnhancedVolcano
 #' @import fitdistrplus
+#' @import nnet
 
 
 

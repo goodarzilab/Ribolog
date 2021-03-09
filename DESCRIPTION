@@ -48,7 +48,8 @@ Imports:
     rlist,
     gdata,
     nlme,
-    fitdistrplus
+    fitdistrplus,
+    nnet
 Suggests:
     knitr,
     rmarkdown
