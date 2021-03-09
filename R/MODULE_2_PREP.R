@@ -58,7 +58,7 @@ bam2count <- function(bamfolder, annotation){
 
 
 
-#' @title gm_means_z
+#' @title gm_mean_z
 #' @description Function to calculate geometric mean of a vector of non-negative numbers
 #' @details Zeros will remain in the calculation and render the geometric mean zero.
 #' Compare with \code{\link{gm_mean}}.
@@ -71,7 +71,7 @@ gm_mean_z <- function(x){
 
 
 
-#' @title gm_means
+#' @title gm_mean
 #' @description Function to calculate geometric mean of positive numbers in a vector
 #' @details Zeros and negative numbers will be effectively treated as 1:
 #' They will not contribute to the product of numbers but will be included in calculation of vector length.
@@ -141,6 +141,12 @@ normalize_median_of_ratios_append <- function (expression_data_frame, data_colum
 #' rna_CELP_rpf_count_norm2_LMCN <- Ribolog::normalize_median_of_ratios(rna_CELP_rpf_count_norm1_LMCN, c(10:17))
 #' @export
 normalize_median_of_ratios <- function (expression_data_frame, data_columns){
+
+  if (length(data_columns) < 2){
+      print('Skipped Normalisation because less than two data columns specified.')
+      return(expression_data_frame)
+  }
+
   gm_mean_z <- function(x){
     exp(sum(log(x)) / length(x))
   }
