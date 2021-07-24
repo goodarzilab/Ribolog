@@ -38,7 +38,7 @@
 #' @examples
 #' annotation_human_cDNA <- read_annotation("<file.path>/Human.GRC38.96_annotation.txt")
 read_annotation <- function(annotation_file){
-  annotation <- as.data.table(read.table(annotation_file, header = TRUE))
+  annotation <- data.table::as.data.table(read.table(annotation_file, header = TRUE))
   return(annotation)
 }
 
@@ -144,7 +144,7 @@ bamtolist_rW <- function(bamfolder, annotation, transcript_align = TRUE,
 
     cat(sprintf("Reading %s\n", current_bam))
     filename <- file.path(bamfolder, current_bam)
-    dt <- as.data.table(GenomicAlignments::readGAlignments(filename))
+    dt <- data.table::as.data.table(GenomicAlignments::readGAlignments(filename))
     nreads <- nrow(dt)
     cat(sprintf("Input reads: %s M\n", format(round((nreads / 1000000), 3), nsmall = 3)))
     dt <- dt[, diff_width := qwidth - width
@@ -591,7 +591,7 @@ psite_info_rW <- function(data, offset, site = NULL, fastapath = NULL,
             names(temp_sequences) <- tstrsplit(names(temp_sequences), refseq_sep, fixed = TRUE, keep = 1)[[1]]
           }
           exon <- suppressWarnings(GenomicFeatures::exonsBy(txdbanno, by = "tx", use.names = TRUE))
-          exon <- as.data.table(exon[unique(names(exon))])
+          exon <- data.table::as.data.table(exon[unique(names(exon))])
           sub_exon_plus <- exon[as.character(seqnames) %in% names(temp_sequences) & strand == "+"]
           sub_exon_minus <- exon[as.character(seqnames) %in% names(temp_sequences) & strand == "-"
                                  ][, new_end := Biostrings::width(temp_sequences[as.character(seqnames)]) - start + 1
