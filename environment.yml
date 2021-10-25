@@ -10,6 +10,7 @@ dependencies:
   - bioconductor-EnhancedVolcano
   - r-BiocManager
   - r-devtools
+  - r-nnet
   - r-data.table
   - r-ggplot2
   - r-ggrepel
