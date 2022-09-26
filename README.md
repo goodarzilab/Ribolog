@@ -73,5 +73,7 @@ __Ribolog__ was developed by Hossein Asgharian at UCSF supervised by Hani Goodar
 
 For questions and comments, email us at:  
 hossein.asgharian@gmail.com
+
 sohitmiglani@gmail.com
+
 hani.goodarzi@ucsf.edu
