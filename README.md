@@ -72,5 +72,6 @@ Rendering the vignettes during installation requires bam files that are not uplo
 __Ribolog__ was developed by Hossein Asgharian at UCSF supervised by Hani Goodarzi and Adam Olshen. More modules are being prepared and will be released in near future.
 
 For questions and comments, email us at:  
-hosseinali.asgharian@ucsf.edu  
+hossein.asgharian@gmail.com
+sohitmiglani@gmail.com
 hani.goodarzi@ucsf.edu
