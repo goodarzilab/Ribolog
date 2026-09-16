@@ -31,7 +31,14 @@ Function to calculate p-values by empirical null hypothesis testing.
 \details{
 Function \code{\link{logit_seq}} outputs regression coefficients and p-values by defaults. Option
 \code{long_output = TRUE} adds SD(beta) and z columns to the output matrix.
+Output column names are derived from \code{colnames(x)[zcols]} by replacing "zvalue" with "ep"
+(e.g. \code{zvalue_lung_metastasisY} -> \code{ep_lung_metastasisY}, matching \code{\link{logit_seq}}'s
+naming convention); columns not following that convention are returned unrenamed.
 }
 \examples{
-fit1_LMCN_ENZ_p <- test_ENZ(x = fit1_LMCN, enz = rr_LMCN.v2.enz, zcols = 7)
+fit1 <- Ribolog::logit_seq(rr.v2_dummy[, -1], Ribolog::sample_attributes_dummy, read_type ~ lung_metastasis,
+                            as.vector(rr.v2_dummy$transcript), adj_method = 'none')
+rr.v2_dummy.enz <- Ribolog::build_empirical_null(rr.v2_dummy[, -1], Ribolog::sample_attributes_dummy,
+                                            uniqueID = "replicate_name", groupID = "cell_line")
+fit1_ENZ_p <- test_ENZ(x = fit1, enz = rr.v2_dummy.enz, zcols = 7)
 }

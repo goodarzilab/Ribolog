@@ -66,7 +66,7 @@ The *no_x_cds* argument must be given only if the 3' coordinate of CDS in the fa
 
 Examples:
 
-```{r }
+```{bash }
 #$ python Biomart_cDNA_fasta_to_rW_annotation_and_reheadered_longest_CDS_cDNA_fasta.py Mouse_GRCm38.p6_cDNA.v1.txt Mouse_GRCm38_cDNA_longest_CDS.txt Mouse_GRCm38_annotation.txt Mouse_GRCm38_ID_mapper.txt 
 
 #$ python Biomart_cDNA_fasta_to_rW_annotation_and_reheadered_longest_CDS_cDNA_fasta.py Fly_BDGP6.22.96_cDNA.v1.txt Fly_BDGP6.22.96_cDNA_longest_CDS.txt Fly_BDGP6.22.96_annotation.txt Fly_BDGP6.22.96_ID_mapper.txt no_x_cds
@@ -89,12 +89,9 @@ setwd("C:/Science/Projects/Ribosome profiling/Ribolog")
 You can also load the pre-provided annotations although these annotations may not match the reference genome used by you for the alignment of your data. The annotation loaded in Ribolog and the annotation used for alignment must be the same.
 
 ```{r warning = FALSE, message = FALSE}
-#annotation_human_cDNA <- Ribolog::read_annotation("./data-raw/Human.GRC38.96_annotation.txt")
-outputs <- Ribolog::load_annotation_and_cdna('human')
-annotation <- outputs[['annotation']]
-cdna_fasta <- outputs[['cdna_fasta']]
+annotation <- Ribolog::human_annotation
+cdna_fasta <- Ribolog::human_cdna
 ```
-
 
 ## 1.2. Create a reads_list object from bam files
 
@@ -104,7 +101,7 @@ Read .bam files into a list of data frames. Each data frame contains reads infor
 
 ```{r message = FALSE, warning = FALSE, results = 'hide'}
 #reads_list_LMCN <- Ribolog::bamtolist_rW(bamfolder = "./data-raw/Bam/RPF", annotation = annotation_human_cDNA)
-reads_list_LMCN <- Ribolog::bamtolist_rW(bamfolder = "C:/Science/Projects/Ribosome profiling/File exchange/Bam/RPF", annotation = annotation_human_cDNA)
+reads_list_LMCN <- Ribolog::reads_list_dummy ## Dummy file for testing
 
 ```
 
@@ -293,11 +290,9 @@ head(rpf_observed_sum_LMCN)
 ```{r}
 rpf_corrected_sum_LMCN <- Ribolog::codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN_10tr$tr_codon_read_count_loess_corrected, count.type = "corrected_count")
 head(rpf_corrected_sum_LMCN)
-
 ```
 
 ```{r include = FALSE}
-saveRDS(rpf_corrected_sum_LMCN, "./data/rpf_corrected_sum_LMCN")
-
+saveRDS(rpf_corrected_sum_LMCN, "rpf_corrected_sum_LMCN")
 ```
 

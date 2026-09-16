@@ -4,7 +4,7 @@
 \alias{generate_ENZ}
 \title{generate_ENZ}
 \usage{
-generate_ENZ(x, design, outcome = "read_type", uniqueID, groupID)
+generate_ENZ(x, design, outcome = "read_type", uniqueID, groupID, adj_method)
 }
 \arguments{
 \item{x}{A sample-by-sample list of RNA and RPF count data and sample attributes produced by \code{\link{partition_to_uniques}}.}
@@ -22,6 +22,10 @@ and is usually equal to replicate name in biological experiments.}
 \item{groupID}{A variable (column) of the design matrix indicating which replicates should be grouped together.
 All experimental units having the same \code{groupID} will be considered replicates of the same biological sample
 (or members of the same group of samples).}
+
+\item{adj_method}{P-value adjustment method.
+Options: "qvalue", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".
+"qvalue" calls the \emph{qvalue} package. Other methods are from base R.}
 }
 \value{
 A vector of z statistics constituting empirical null.
@@ -36,5 +40,7 @@ each biological sample (items with the same \code{groupID}) and pools the z valu
 empirical null.
 }
 \examples{
-rr_LMCN.v2.enz <- generate_ENZ(x = rr_LMCN.v2.split, design = sample_attributes_LMCN, outcome = "read_type", uniqueID = "replicate_name", groupID = "cell_line")
+rr.v2_dummy.split <- Ribolog::partition_to_uniques(rr.v2_dummy[, -1], Ribolog::sample_attributes_dummy, "replicate_name")
+rr.v2_dummy.enz <- generate_ENZ(x = rr.v2_dummy.split, design = Ribolog::sample_attributes_dummy, outcome = "read_type",
+                           uniqueID = "replicate_name", groupID = "cell_line", adj_method = "none")
 }

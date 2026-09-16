@@ -16,8 +16,6 @@ Three ribosome-profiling-specific QC tools are provided in this module:
 ```{r include = FALSE}
 library(knitr)
 opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
-opts_chunk$set(root.dir = "C:/Science/Projects/Ribosome profiling/Ribolog")
-
 ```
 
 # TEST 1: Principal component analysis (PCA) of RNA, RPF and translational efficiency

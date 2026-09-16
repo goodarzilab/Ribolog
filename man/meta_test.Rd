@@ -4,8 +4,14 @@
 \alias{meta_test}
 \title{meta_test}
 \usage{
-meta_test(x, features_equivar = FALSE, comp_sym = FALSE,
-  effect_wt = TRUE, feature_list = NULL, long_output = FALSE)
+meta_test(
+  x,
+  features_equivar = FALSE,
+  comp_sym = FALSE,
+  effect_wt = TRUE,
+  feature_list = NULL,
+  long_output = FALSE
+)
 }
 \arguments{
 \item{x}{A list of test results to be combined. Each element of the list is a four-column matrix:
@@ -25,14 +31,14 @@ FALSE: Correlation matrix is calculated by the R default i.e. separately between
 This would be equivalent to unstructured covariance matrix in repreated measure ANOVA.
 Default: FALSE.}
 
+\item{effect_wt}{Indicator variable. TRUE: Combine effect sizes weighted by their inverse of variance.
+FALSE: Combine effect sizes with equal weights. Default: TRUE.}
+
 \item{feature_list}{(Optional) A vector containing IDs of genes/transcripts.
 Must have the same length as the row number of input list data frames.}
 
 \item{long_output}{Indicates whether the parameters M and nu of the Makambi method should be included in the output.
 Default: FALSE.}
-
-\item{wt_effects}{Indicator variable. TRUE: Combine effect sizes weighted by their inverse of variance.
-FALSE: Combine effect sizes with equal weights. Default: TRUE.}
 }
 \value{
 A two or four column matrix. By default, a two column matrix: [1] meta_beta: combined effect size [2] meta_p: combined p-value.
@@ -70,13 +76,15 @@ Results (the four previously described columns) for each predictor have to be ex
 and combined separately using \code{\link{meta_test}}.
 }
 \examples{
-The effect of lung metastasis is tested in two genetic backgrounds sperately, then combined:
-fit1a_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,c(2:5,10:13)], sample_attributes_LMCN[c(1:4,9:12), ], read_type ~ lung_metastasis, as.vector(rr_LMCN.v2$transcript))
-fit1b_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,c(6:9,14:17)], sample_attributes_LMCN[c(5:8,13:16), ], read_type ~ lung_metastasis, as.vector(rr_LMCN.v2$transcript))
-We are not interested in the intercept terms, so keep only the last four columns of the outputs which pertain to lung metastasis:
-fit1ab_LMCN_list <- list("fit1a_LMCN" = fit1a_LMCN[, c(5:8)], "fit1b_LMCN" = fit1b_LMCN[, c(5:8)])
-And now, combine:
-fit1ab_LMCN_meta <- meta_test(fit1ab_LMCN_list, feature_list = rr_LMCN.v2$transcript)
+# The effect of lung metastasis is tested in two genetic backgrounds separately, then combined:
+fit1a <- Ribolog::logit_seq(rr.v2_dummy[,c(2:5,10:13)], Ribolog::sample_attributes_dummy[c(1:4,9:12), ],
+                             read_type ~ lung_metastasis, as.vector(rr.v2_dummy$transcript), adj_method = 'none')
+fit1b <- Ribolog::logit_seq(rr.v2_dummy[,c(6:9,14:17)], Ribolog::sample_attributes_dummy[c(5:8,13:16), ],
+                             read_type ~ lung_metastasis, as.vector(rr.v2_dummy$transcript), adj_method = 'none')
+# We are not interested in the intercept terms, so keep only the last four columns of the outputs which pertain to lung metastasis:
+fit1ab_list <- list("fit1a" = fit1a[, c(5:8)], "fit1b" = fit1b[, c(5:8)])
+# And now, combine:
+fit1ab_meta <- meta_test(fit1ab_list, feature_list = rr.v2_dummy$transcript)
 }
 \references{
 Makambi, K. 2003. Weighted inverse chi-square method for correlated significance tests.

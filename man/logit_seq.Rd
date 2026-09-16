@@ -4,7 +4,16 @@
 \alias{logit_seq}
 \title{logit_seq}
 \usage{
-logit_seq(x, design, model, feature_list = NULL, long_output = FALSE)
+logit_seq(
+  x,
+  design,
+  model,
+  adj_method,
+  feature_list = NULL,
+  long_output = TRUE,
+  id_mapper = NULL,
+  id_column = "gene_id"
+)
 }
 \arguments{
 \item{x}{Input data frame where each column contains RNA or RPF counts from a single sample.
@@ -15,15 +24,37 @@ i-th row in the design matrix corresponds to the i-th column in the input data f
 
 \item{model}{Regression equation modeling the odds ratio of RPF/RNA counts against the selected design variables (sample attributes)}
 
+\item{adj_method}{P-value adjustment method.
+Options: "qvalue", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".
+"qvalue" calls the \emph{qvalue} package. Other methods are from base R.}
+
 \item{feature_list}{(Optional) A vector containing IDs of genes/transcripts.
 Must have the same length as the row number of input data frame.}
+
+\item{long_output}{If \code{TRUE} (default), report five columns per model term: \code{logFC_<term>},
+\code{std_<term>}, \code{zvalue_<term>}, \code{pvalue_<term>}, and (if \code{adj_method != "none"})
+\code{corrected_pvalue_<term>}. If \code{FALSE}, report only \code{logFC_<term>} and
+\code{corrected_pvalue_<term>} (or \code{pvalue_<term>} if \code{adj_method == "none"}).}
+
+\item{id_mapper}{(Optional) A data frame mapping \code{feature_list} IDs (e.g. transcript IDs) to another
+ID system (e.g. gene IDs/names), such as \code{\link{human_id_mapper}}. Must contain a \code{transcript}
+column matching \code{feature_list} and a column named \code{id_column}. When given, the output's row
+names are replaced with the mapped IDs (falling back to the original \code{feature_list} value for any
+unmapped feature, and disambiguated with \code{\link{make.unique}} if the mapping is not one-to-one).
+If \code{NULL} (default), row names are just \code{feature_list}, unchanged.}
+
+\item{id_column}{Name of the column in \code{id_mapper} to map to. Default: "gene_id".}
 }
 \value{
-A matrix containing the output of the regression. If long output is requested, four
-values are reported for each predictor in the regression 'model' including the intercept:
-regression coefficient (beta), standard deviation of the estimated beta, z-score and Wald-test p-value.
-If long output is not specified, only regression coefficients and p-values are reported.
+A data frame containing the output of the regression, with columns grouped together per model
+term (including the intercept, named "intercept"). If long output is requested, five columns are
+reported for each term: \code{logFC_<term>} (regression coefficient), \code{std_<term>} (standard
+deviation of the estimated coefficient), \code{zvalue_<term>}, \code{pvalue_<term>} (Wald-test p-value),
+and \code{corrected_pvalue_<term>} (multiple-testing-adjusted p-value; only present when
+\code{adj_method != "none"}). If long output is not specified, only \code{logFC_<term>} and
+\code{corrected_pvalue_<term>} (or \code{pvalue_<term>} if \code{adj_method == "none"}) are reported.
 Gene/transcript IDs provided by the 'feature_list' argument is added to the output matrix as row names.
+Generalizes to any number of model terms/predictors.
 }
 \description{
 Function to perform the logistic regression test for differential translational efficiency
@@ -35,18 +66,22 @@ The change in translational efficiency between samples or based on unit values o
 (design variable) is given by the exponentiated regression coefficient.
 Exponentiated intercept gives the TE for the sample with all the attributes at the reference level.
 If the predcitor variable is categorical, its levels are sorted alphabetically, the first level is set to reference
-and all other levels are compared to it. The reference level can be manually changed using the \code{\link{relevel()}} function of R.
+and all other levels are compared to it. The reference level can be manually changed using the \code{\link[stats]{relevel}} function of R.
 }
 \examples{
-Test the effect of lung metastasis on translational efficiency:
-fit1_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis, as.vector(rr_LMCN.v2$transcript))
-Test the effects of lung metastasis and cell line origin on translational efficiency:
-fit2_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis + cell_line_origin, as.vector(rna.rpf.combined.m5$transcript))
-Test the effects of lung metastasis, cell line origin and their interaction on translational efficiency:
-fit3_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ lung_metastasis * cell_line_origin, as.vector(rna.rpf.combined.m5$transcript))
-Test the effect of cell line on translational efficiency (cell line "CN34" is used as reference because it comes first alphabetically):
-fit4_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ cell_line, as.vector(rr_LMCN.v2$transcript))
-Test the effect of cell line on translational efficiency with cell line "MDA" set as reference:
-sample_attributes_LMCN$cell_line <- relevel(sample_attributes_LMCN$cell_line, ref = "MDA")
-fit5_LMCN <- Ribolog::logit_seq(rr_LMCN.v2[,-1], sample_attributes_LMCN, read_type ~ cell_line, as.vector(rr_LMCN.v2$transcript))
+# Test the effect of lung metastasis on translational efficiency:
+fit1 <- Ribolog::logit_seq(rr.v2_dummy[,-1], Ribolog::sample_attributes_dummy, read_type ~ lung_metastasis, as.vector(rr.v2_dummy$transcript), adj_method = 'none')
+# Test the effects of lung metastasis and cell line origin on translational efficiency:
+fit2 <- Ribolog::logit_seq(rr.v2_dummy[,-1], Ribolog::sample_attributes_dummy, read_type ~ lung_metastasis + cell_line_origin, as.vector(rr.v2_dummy$transcript), adj_method = 'none')
+# Test the effects of lung metastasis, cell line origin and their interaction on translational efficiency:
+fit3 <- Ribolog::logit_seq(rr.v2_dummy[,-1], Ribolog::sample_attributes_dummy, read_type ~ lung_metastasis * cell_line_origin, as.vector(rr.v2_dummy$transcript), adj_method = 'none')
+# Test the effect of cell line on translational efficiency (cell line "CN34" is used as reference because it comes first alphabetically):
+fit4 <- Ribolog::logit_seq(rr.v2_dummy[,-1], Ribolog::sample_attributes_dummy, read_type ~ cell_line, as.vector(rr.v2_dummy$transcript), adj_method = 'none')
+# Test the effect of cell line on translational efficiency with cell line "MDA" set as reference:
+sample_attributes2 <- Ribolog::sample_attributes_dummy
+sample_attributes2$cell_line <- relevel(sample_attributes2$cell_line, ref = "MDA")
+fit5 <- Ribolog::logit_seq(rr.v2_dummy[,-1], sample_attributes2, read_type ~ cell_line, as.vector(rr.v2_dummy$transcript), adj_method = 'none')
+# Same test, with row names mapped from transcript IDs to gene IDs using a bundled ID mapper:
+fit1_FDR <- Ribolog::logit_seq(rr.v2_dummy[,-1], Ribolog::sample_attributes_dummy, read_type ~ lung_metastasis,
+                                as.vector(rr.v2_dummy$transcript), adj_method = 'fdr', id_mapper = Ribolog::human_id_mapper)
 }

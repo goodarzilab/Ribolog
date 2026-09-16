@@ -4,7 +4,7 @@
 \alias{create_te}
 \title{create_te}
 \usage{
-create_te(x, idcolumns = NULL, rnacolumns, rpfcolumns)
+create_te(x, idcolumns = NULL, rnacolumns, rpfcolumns, allow_zero_rpf = FALSE)
 }
 \arguments{
 \item{x}{Input data frame containing RNA-seq or Ribo-seq data.
@@ -17,6 +17,8 @@ These columns may contain the gene/transcript ID or any metadata that need to be
 \item{rnacolumns}{A vector specifying the columns containing RNA counts}
 
 \item{rpfcolumns}{A vector specifying the columns containing RPF counts}
+
+\item{allow_zero_rpf}{A boolean allowing the total RPF counts of a transcript to be 0}
 }
 \value{
 A data frame containing the original ID columns and the calculated TE columns.
@@ -29,5 +31,5 @@ Translational efficiency is calculated as RPF/RNA.
 The number and order of samples must be the same in RNA and RPF columns.
 }
 \examples{
-te_LMCN <- create_te(rr_LMCN.v2, 1, c(2:9), c(10:17))
+te.v2 <- Ribolog::create_te(rr.v2_dummy, idcolumns = 1, rnacolumns = c(2:9), rpfcolumns = c(10:17))
 }

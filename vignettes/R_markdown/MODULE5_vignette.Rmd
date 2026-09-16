@@ -21,7 +21,6 @@ This module offers functions for two important slightly advanced statistical tas
 # 5.1. Empirical Null Testing
 
 ```{r message=FALSE, warning=FALSE}
-setwd("C:/Science/Projects/Ribosome profiling/Ribolog")
 rr_LMCN.v2 <- readRDS("./data-raw/rr_LMCN.v2")
 sample_attributes_LMCN <- read.xlsx("./data-raw/sample_attributes_LMCN.xlsx", sheetIndex = 1, header = TRUE)
 ```

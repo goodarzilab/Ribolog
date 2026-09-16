@@ -3,6 +3,30 @@
 # Ribolog
 A suite of regression-based tools for Ribosome profiling data analysis
 
+## Installing Ribolog
+
+### Install directory in R
+
+```R
+install.packages('BiocManager')
+BiocManager::install("Goodarzilab/Ribolog")
+```
+
+### Install Ribolog with a Conda Environment in Bash
+Run the code below in your terminal to build and activate a conda environment with all the dependencies of Ribolog inside it.
+
+```sh
+conda env create -f 'https://raw.githubusercontent.com/goodarzilab/Ribolog/master/environment.yml'
+conda activate ribolog # Now you're inside the conda environment
+R -e "BiocManager::install('Goodarzilab/Ribolog', dependencies = FALSE)"
+```
+
+## Tutorial 
+
+### Please refer to the ["Ribolog_Full_Tutorial.ipynb"](Ribolog_Full_Tutorial.ipynb) file for a full tutorial of the package.
+
+## Module details
+
 ## Module 1: CELP (Consistent Excess of Loess Preds)
 Identifies positions of translational pause (stalling)
 and corrects RPF counts to eliminate the impact of stalling bias. The output of CELP can be used to model the
@@ -30,46 +54,9 @@ The Ribolog workflow is described in great detail in the package vignettes (RIBO
 
 ![Logo-r](https://github.com/Goodarzilab/Ribolog/blob/master/vignettes/Ribolog_workflow.v5.png)
 
-## Installing Ribolog
-
-<b> Step 1:</b> Make sure to have all the necessary development tools installed on your system. Run these in the command line to install them: <br/>
-
-- Skip this step if you use Windows.
-
-In Ubuntu (or computing servers):
-```sh
-sudo apt-get install build-essential libcurl4-gnutls-dev libxml2-dev libssl-dev libz-dev libbz2-dev liblzma-dev
-```
-
-In Linux
-```sh
-sudo yum groupinstall 'Development Tools'
-```
-
-In Mac (if you don't have development tools/ Xcode installed)
-```sh
-xcode-select --install
-```
-
-<b> Step 2:</b>  Run the following commands in R:
-
-```R
-install.packages('BiocManager')
-BiocManager::install("Goodarzilab/Ribolog")
-```
-
-### Install Ribolog with a Conda Environment
-Run the code below in your terminal to build and activate a conda environment with all the dependencies of Ribolog inside it.
-
-```sh
-conda env create -f 'https://raw.githubusercontent.com/goodarzilab/Ribolog/master/environment.yml'
-conda activate Ribolog # Now you're inside the conda environment
-R -e "BiocManager::install('Goodarzilab/Ribolog', dependencies = FALSE)"
-```
-
 Rendering the vignettes during installation requires bam files that are not uploaded onto this repository. The knitted .pdf file should be downloaded directly from the vignettes folder instead.
 
-__Ribolog__ was developed by Hossein Asgharian at UCSF supervised by Hani Goodarzi and Adam Olshen. More modules are being prepared and will be released in near future.
+__Ribolog__ was developed by Hossein Asgharian and Sohit Miglani at UCSF supervised by Hani Goodarzi and Adam Olshen. More modules are being prepared and will be released in near future.
 
 For questions and comments, email us at:  
 - hossein.asgharian@gmail.com

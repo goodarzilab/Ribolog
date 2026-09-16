@@ -27,6 +27,8 @@ A summary of the PC analysis is printed out to standard output.
 If outfile is not specified, PCA plots will be printed to standard output i.e. the plots panel in Rstudio.
 }
 \examples{
-pca_qc(te_LMCN.v2.stnd[,-1], n = 4)
-The first column of input data (transcript ID) had to be removed to create a full-numeric input dataset.
+te.v2 <- Ribolog::create_te(rr.v2_dummy, idcolumns = 1, rnacolumns = c(2:9), rpfcolumns = c(10:17))
+te.v2.stnd <- Ribolog::row_standardize(te.v2, columns = c(2:9))
+# The first column of input data (transcript ID) had to be removed to create a full-numeric input dataset.
+pca_qc(te.v2.stnd[, -1], n = 2, ID = Ribolog::sample_attributes_dummy$cell_line[c(1:8)])
 }

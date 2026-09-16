@@ -37,11 +37,15 @@ rsconnect/
 .Rproj.user
 inst/doc
 
-# Data-raw files
-/data-raw/*.*
-
 # Mac files
 
 .DS_Store
 .ipynb_checkpoints
 .ipynb_checkpoints/*.*
+
+# Scratch/working data files (not "./*.rds" - that leading "./" doesn't anchor
+# anything in gitignore syntax and was silently matching nothing)
+*.rds
+*.RDS
+*.csv
+

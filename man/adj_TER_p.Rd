@@ -27,6 +27,10 @@ P-values from differential translational efficiency test on individual genes/tra
 are correctd for multiple testing.
 }
 \examples{
-fit1_LMCN_qval <- adj_TER_p(fit1_LMCN, c(2,4), "qvalue")
-fit3_LMCN_fdr <- adj_TER_p(fit3_LMCN, c(2,4,6,8), "fdr")
+fit1 <- Ribolog::logit_seq(rr.v2_dummy[,-1], Ribolog::sample_attributes_dummy, read_type ~ lung_metastasis,
+                            as.vector(rr.v2_dummy$transcript), adj_method = 'none', long_output = FALSE)
+fit1_qval <- adj_TER_p(fit1, c(2,4), "qvalue")
+fit3 <- Ribolog::logit_seq(rr.v2_dummy[,-1], Ribolog::sample_attributes_dummy, read_type ~ lung_metastasis * cell_line_origin,
+                            as.vector(rr.v2_dummy$transcript), adj_method = 'none', long_output = FALSE)
+fit3_fdr <- adj_TER_p(fit3, c(2,4,6,8), "fdr")
 }

@@ -1,22 +1,11 @@
-#' @import data.table
-#' @import Biostrings
+#' @importFrom data.table data.table setnames setkey setcolorder setorder tstrsplit CJ .N .SD .EACHI :=
 #' @import ggplot2
 #' @import ggrepel
-#' @import dplyr
-#' @import robustbase
-#' @import qvalue
-#' @import nortest
-#' @import matrixStats
-#' @import sm
+#' @importFrom dplyr %>% count rename filter_all all_vars
 #' @import corrplot
-#' @import DescTools
-#' @import GenomicAlignments
 #' @import rlist
-#' @import gdata
-#' @import nlme
 #' @import EnhancedVolcano
 #' @import fitdistrplus
-
 
 
 #' @title read_annotation
@@ -91,7 +80,6 @@ load_annotation_and_cdna <- function(organism){
 }
 
 
-
 #' @title bamtolist_rW
 #' @description Function to convert bam files and an annotation file to a reads_list object.
 #' @param bamfolder Path to the folder containing ribo-seq bam files (one bam file per sample is expected).
@@ -99,8 +87,15 @@ load_annotation_and_cdna <- function(organism){
 #' It has five columns: transcript, l_tr, l_utr5, l_cds and l_utr3.
 #' Transcript names and segment lengths must correspond to the reference sequences to which the reads were mapped.
 #' @param transcript_align A logical argument indicating whether the reads were mapped to transcripts (TRUE) or geneome + gtf (FALSE). Default: TRUE.
+#' @param name_samples (Optional) A named character vector mapping bam file base names (without ".bam") to
+#' the sample names to use in the output list. Default: \code{NULL}, which uses every bam file found in
+#' \code{bamfolder} and names each sample after its own bam file.
 #' @param indel_threshold Maximum number of indels allowed per read. Default: 5.
-#' @param ... ...
+#' @param refseq_sep (Optional) A string separator; if given, each read's reference sequence name is
+#' truncated to everything before the first occurrence of \code{refseq_sep} (e.g. to strip a
+#' version/description suffix from a FASTA header). Default: \code{NULL} (no truncation).
+#' @param granges Logical. If \code{TRUE}, return the result as a \code{GenomicRanges::GRangesList} instead
+#' of a plain list of data frames. Default: \code{FALSE}.
 #' @details
 #' This function takes a folder of ribo-seq bam files (one per sample) and an annotation table as input, and
 #' produces a reads_list object.
@@ -237,7 +232,6 @@ bamtolist_rW <- function(bamfolder, annotation, transcript_align = TRUE,
 }
 
 
-
 #' @title rlength_distr_rW
 #' @description Function to plot ribo-seq read length distribution of a sample.
 #' @param reads_list A reads_list object produced by \code{\link{bamtolist_rW}}.
@@ -247,7 +241,7 @@ bamtolist_rW <- function(bamfolder, annotation, transcript_align = TRUE,
 #' Use this argument to avoid printing out extremely uncommon read lengths. Default:99.
 #' @details This function produces a read length histogram for the specified sample.
 #' @examples
-#' rlength_distr_rW(reads_list_LMCN, "CN34_r1_rpf")
+#' rlength_distr_rW(Ribolog::reads_list_dummy, "CN34_r1_rpf")
 #' @export
 rlength_distr_rW <- function(reads_list, sample, transcripts = NULL, cl = 99){
   data <- reads_list
@@ -275,7 +269,6 @@ rlength_distr_rW <- function(reads_list, sample, transcripts = NULL, cl = 99){
 }
 
 
-
 #' @title print_read_ldist
 #' @description Function to print out read length distributions of all samples in a reads_list object to a pdf file.
 #' @param reads_list A reads_list object produced by \code{\link{bamtolist_rW}}.
@@ -283,8 +276,10 @@ rlength_distr_rW <- function(reads_list, sample, transcripts = NULL, cl = 99){
 #' @param cl An integer in [1,100] specifying a confidence level to restrict the plot to a sub-range of read lengths.
 #' Use this argument to avoid printing out extremely uncommon read lengths. Default: 99.
 #' @details This function saves the read length histograms of all samples in a reads_list object to a pdf file.
+#' Read lengths outside the \code{cl} range are intentionally clipped from the x-axis by design; the resulting
+#' ggplot2 "Removed N rows" warning is expected and suppressed.
 #' @examples
-#' print_read_ldist(reads_list_LMCN, "<file.path>/LMCN_RPF_Read_length_distributions.pdf")
+#' print_read_ldist(Ribolog::reads_list_dummy, tempfile(fileext = ".pdf"))
 #' @export
 print_read_ldist <- function(reads_list, outfile=NULL, cl=99){
 
@@ -292,7 +287,7 @@ print_read_ldist <- function(reads_list, outfile=NULL, cl=99){
 
   for (sample_i in names(reads_list)){
     length_dist_zoom <- rlength_distr_rW(reads_list, sample=sample_i, cl=cl)
-    print(length_dist_zoom[["plot"]])
+    suppressWarnings(print(length_dist_zoom[["plot"]]))
   }
 
   if (!is.null(outfile)) {
@@ -300,7 +295,6 @@ print_read_ldist <- function(reads_list, outfile=NULL, cl=99){
     sprintf("PDF (%s) created and saved", outfile)
   }
 }
-
 
 
 #' @title psite_rW
@@ -314,13 +308,20 @@ print_read_ldist <- function(reads_list, outfile=NULL, cl=99){
 #' @param plot_dir The directory where the read-length-specific ribosome occupancy plots are saved. This argument is only
 #' considered if \code{plot = TRUE}.
 #' @param plot_format "png" or "pdf". It is only considered if \code{plot = TRUE}.
+#' @param cl Confidence level (percentage) of read lengths plotted around the median when \code{plot = TRUE};
+#' the shortest and longest lengths are trimmed so only the central \code{cl}\% of the length distribution
+#' is plotted. Default: 99.
+#' @param log_file Whether to write a log file recording the chosen extremity and offset for each sample.
+#' Default: FALSE.
+#' @param log_file_dir The directory where the log file is saved. Only considered if \code{log_file = TRUE}.
+#' Default: \code{NULL}, which uses the current working directory.
 #' @return
 #' The output is a data table, containing for all samples and read lengths the percentage of reads in the dataset,
 #' the percentage of reads aligning to the start codon, and the distance of p-site from the two read extremities.
 #' @examples
 #' psite_offset_LMCN <- psite_rW(reads_list_LMCN)
 #' @export
-psite_rW <- function(data, flanking = 6, start = TRUE, extremity = "auto",
+psite_rW <- function(reads_list, flanking = 6, start = TRUE, extremity = "auto",
                   plot = FALSE, plot_dir = NULL, plot_format = "png", cl = 99,
                   log_file = FALSE, log_file_dir = NULL) {
 
@@ -335,11 +336,11 @@ psite_rW <- function(data, flanking = 6, start = TRUE, extremity = "auto",
     cat("sample\texremity\toffset(nts)\n", file = logpath)
   }
 
-  names <- names(data)
+  names <- names(reads_list)
   offset <- NULL
   for (n in names) {
     cat(sprintf("processing %s\n", n))
-    dt <- data[[n]]
+    dt <- reads_list[[n]]
     lev <- sort(unique(dt$length))
     if(start == T | start == TRUE){
       base <- 0
@@ -514,18 +515,37 @@ psite_rW <- function(data, flanking = 6, start = TRUE, extremity = "auto",
 }
 
 
-
 #' @title psite_info_rW
 #' @description Function to add p-site offset information to a reads_list object
 #' @param reads_list A reads_list object produced by \code{\link{bamtolist_rW}}
 #' @param offset Offset data table produced by \code{\link{psite_rW}}
-#' @param ... ...
+#' @param site (Optional) One or more of \code{"psite"}, \code{"asite"}, \code{"esite"}: which p/a/e-site
+#' codon sequence(s) to attach to each read. Requires either \code{fastapath} or \code{bsgenome}, plus either
+#' \code{gtfpath} or \code{txdb}, to look up transcript sequences. Default: \code{NULL} (no sequence lookup).
+#' @param fastapath (Optional) Path to a FASTA file of reference sequences, used to retrieve site codon
+#' sequences when \code{site} is given. Only one of \code{fastapath}/\code{bsgenome} should be given.
+#' @param fasta_genome Logical; whether \code{fastapath} points to a whole-genome FASTA (\code{TRUE}, requiring
+#' \code{gtfpath}/\code{txdb} to extract transcript sequences) or a transcript-level FASTA (\code{FALSE}).
+#' Default: \code{TRUE}.
+#' @param refseq_sep (Optional) A string separator; if given, each FASTA sequence name is truncated to
+#' everything before the first occurrence of \code{refseq_sep}. Default: \code{NULL} (no truncation).
+#' @param bsgenome (Optional) Name of a \code{BSgenome} annotation package to use as the genome sequence
+#' source instead of \code{fastapath}. Only one of \code{fastapath}/\code{bsgenome} should be given.
+#' @param gtfpath (Optional) Path to a GTF file used to build transcript models (via
+#' \code{txdbmaker::makeTxDbFromGFF}) when extracting site codon sequences from a whole genome.
+#' Only one of \code{gtfpath}/\code{txdb} should be given.
+#' @param txdb (Optional) Name of an installed \code{TxDb} annotation package to use instead of \code{gtfpath}.
+#' Only one of \code{gtfpath}/\code{txdb} should be given.
+#' @param dataSource,organism Passed to \code{txdbmaker::makeTxDbFromGFF} when \code{gtfpath} is given
+#' (purely descriptive metadata attached to the resulting \code{TxDb}). Default: \code{NA}.
+#' @param granges Logical. If \code{TRUE}, return the result as a \code{GenomicRanges::GRangesList} instead
+#' of a plain list of data frames. Default: \code{FALSE}.
 #' @details This functions adds to each read four pieces of information regarding its p-site: distance from start
 #' of the transcript, distance from start and end of the coding sequence (CDS), and region (5' UTR, CDS or 3' UTR).
 #' @examples
 #' reads_psite_list_LMCN <- psite_info_rW(reads_list_LMCN, psite_offset_LMCN)
 #' @export
-psite_info_rW <- function(data, offset, site = NULL, fastapath = NULL,
+psite_info_rW <- function(reads_list, offset, site = NULL, fastapath = NULL,
                        fasta_genome = TRUE, refseq_sep = NULL, bsgenome = NULL,
                        gtfpath = NULL, txdb = NULL, dataSource = NA,
                        organism = NA, granges = FALSE) {
@@ -570,13 +590,13 @@ psite_info_rW <- function(data, offset, site = NULL, fastapath = NULL,
     if(length(gtfpath) != 0 | length(txdb) != 0){
       if(length(gtfpath) != 0){
         path_to_gtf <- gtfpath
-        txdbanno <- GenomicFeatures::makeTxDbFromGFF(file = path_to_gtf, format = "gtf", dataSource = dataSource, organism = organism)
+        txdbanno <- txdbmaker::makeTxDbFromGFF(file = path_to_gtf, format = "gtf", dataSource = dataSource, organism = organism)
       } else {
         if(txdb %in% rownames(installed.packages())){
           library(txdb, character.only = TRUE)
         } else {
-          source("https://bioconductor.org/biocLite.R")
-          biocLite(txdb, suppressUpdates = TRUE)
+          if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+          BiocManager::install(txdb, update = FALSE, ask = FALSE)
           library(txdb, character.only = TRUE)
         }
         txdbanno <- get(txdb)
@@ -622,8 +642,8 @@ psite_info_rW <- function(data, offset, site = NULL, fastapath = NULL,
         if(bsgenome %in% installed.genomes()){
           library(bsgenome, character.only = TRUE)
         } else {
-          source("http://www.bioconductor.org/biocLite.R")
-          biocLite(bsgenome, suppressUpdates = TRUE)
+          if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+          BiocManager::install(bsgenome, update = FALSE, ask = FALSE)
           library(bsgenome, character.only = TRUE)
         }
         sequences <- GenomicFeatures::extractTranscriptSeqs(get(bsgenome), txdbanno, use.names=T)
@@ -631,10 +651,10 @@ psite_info_rW <- function(data, offset, site = NULL, fastapath = NULL,
     }
   }
 
-  names <- names(data)
+  names <- names(reads_list)
   for (n in names) {
     cat(sprintf("processing %s\n", n))
-    dt <- data[[n]]
+    dt <- reads_list[[n]]
     suboff <- offset[sample == n, .(length,corrected_offset_from_3)]
     cat("1. adding p-site position\n")
     dt[suboff,  on = 'length', psite := i.corrected_offset_from_3]
@@ -682,16 +702,15 @@ psite_info_rW <- function(data, offset, site = NULL, fastapath = NULL,
       GenomicRanges::strand(dt) <- "+"
     }
 
-    data[[n]] <- dt
+    reads_list[[n]] <- dt
   }
 
   if (granges == T | granges == TRUE) {
-    data <- GenomicRanges::GRangesList(data)
+    reads_list <- GenomicRanges::GRangesList(reads_list)
   }
 
-  return(data)
+  return(reads_list)
 }
-
 
 
 #' @title frame_psite_rW
@@ -860,7 +879,6 @@ frame_psite_rW <- function (reads_psite_list, sample = NULL, transcripts = NULL,
 }
 
 
-
 #' @title print_period_region
 #' @description Function to print out psite periodicity by region plots of all samples to a pdf file
 #' @param reads_psite_list A reads_psite_list object produced by \code{\link{psite_info_rW}}
@@ -884,7 +902,6 @@ print_period_region <- function(reads_psite_list, outfile=NULL){
     sprintf("PDF (%s) created and saved", outfile)
   }
 }
-
 
 
 #' @title frame_psite_length_rW
@@ -1071,7 +1088,6 @@ print_period_region_length <- function(reads_psite_list, outfile=NULL, cl=95){
 }
 
 
-
 #' @title psite_to_codon_count
 #' @description Function to count reads per codon for each transcript.
 #' @param reads_psite_list A reads_psite_list object produced by \code{\link{psite_info_rW}}
@@ -1172,252 +1188,4 @@ psite_to_codon_count <- function(reads_psite_list, length_range, annotation, fas
     }
   }
   return(tr_codon_read_count_z_amended)
-}
-
-
-
-#' @title CELP_detect_bias
-#' @description Function to compute codon-level stalling bias coefficients using the CELP (Consistent Excess of Loess Preds) method
-#' @param tr_codon_read_count_list A list generated by \code{\link{psite_to_codon_count}}
-#' containing observed read counts per codon per trancript per sample.
-#' @param codon_radius Number of codons on either side of each codon influencing the loess prediction for the middle codon. Default: 5.
-#' @param loess_method Determines whether the fitted surface should be computed exactly ("direct") or via interpolation from a kd tree ("interpolate").
-#' A third option is "none" which means than raw observed counts to calculate the bias coefficient (no loess). Default: "interpolate".
-#' @details This function starts with running a loess curve on per-codon read counts along the transcript to borrow information
-#' from neighboring codons mitigating the uncertainty of p-site offset assignment and experimental stochasticity.
-#' Loess span parameter is calculated from the user-defined codon radius and CDS length.
-#' Then, a bias coefficient is calculated for each codon by integrating information on the excess of loess-predicted
-#' read counts at that codon comapred to the transcript's background across all samples. Finally, loess predicted counts
-#' read counts are divided by bias coefficients to calculate bias-corrected counts.
-#' The "direct" fitting method takes longer to complete but does not run into kd-tree-related memory issues.
-#' The loess_method "none" option is included mainly to enable comparison and show effectiveness of using loess in
-#' finding bona fide bias positions. It is NOT recommended for actual bias detection.
-#' @return A list of data frames (one per transcript) containing codon-level bias coefficients.
-#' It has the following structure: list$<transcript.ID> data.frame: [1] codon_number [2] codon_type [3] aa_type [4] bias_coefficient.
-#' @examples
-#' bias_coeff_list_LMCN_noloess <- CELP_detect_bias(tr_codon_read_count_LMCN, loess_method = "none")
-#' bias_coeff_list_LMCN_withloess <- CELP_detect_bias(tr_codon_read_count_LMCN, loess_method = "interpolate")
-#' @export
-CELP_detect_bias <- function(tr_codon_read_count_list, loess_method = "interpolate", codon_raduis = 5){
-
-  x <- tr_codon_read_count_list
-  bias_coefficients_list <- list()
-  sample_names_i <- names(x)
-  tr_names_i <- names(x[[1]])
-
-  # Run loess and compute loess predicted values
-  for (t in tr_names_i){
-    if (loess_method == "none"){
-      for (s in sample_names_i){
-        x[[s]][[t]]$excess_ratio <- x[[s]][[t]]$observed_count / median(x[[s]][[t]]$observed_count[x[[s]][[t]]$observed_count>0])
-      }
-    } else {
-      l_cds <- dim(x[[1]][[t]])[1]
-      span_tr <- (2 * codon_raduis + 1) / l_cds
-      for (s in sample_names_i){
-        x[[s]][[t]]$loess_pred <- suppressWarnings(predict(loess(x[[s]][[t]]$observed_count ~ x[[s]][[t]]$codon_number, span = span_tr, se = FALSE, control = loess.control(surface = loess_method))))
-        x[[s]][[t]]$loess_pred [x[[s]][[t]]$loess_pred < 0 ] <- 0
-        x[[s]][[t]]$excess_ratio <- x[[s]][[t]]$loess_pred / median(x[[s]][[t]]$loess_pred[x[[s]][[t]]$loess_pred>0])
-      }
-    }
-  }
-
-  # Calculate position-specific bias coefficients
-  for (t in tr_names_i){
-    bias_coefficients_list[[t]] <- data.frame(codon_number = x[[1]][[t]]$codon_number, codon_type = x[[1]][[t]]$codon_type, aa_type = x[[1]][[t]]$aa_type)
-    for (s in sample_names_i){
-      bias_coefficients_list[[t]] <- data.frame(bias_coefficients_list[[t]], x[[s]][[t]]$excess_ratio)
-    }
-    names(bias_coefficients_list[[t]]) <- c("codon_number", "codon_type", "aa_type", sample_names_i)
-    bias_coefficient <- apply(bias_coefficients_list[[t]][,-c(1:3)], 1, function(y) gm_mean(y))
-    bias_coefficients_list[[t]] <- data.frame(bias_coefficients_list[[t]][,c(1:3)], bias_coefficient)
-  }
-  return(bias_coefficients_list)
-}
-
-
-
-
-#' @title CELP_bias
-#' @description Function to compute codon-level stalling bias coefficients and bias-corrected read counts using the CELP (Consistent Excess of Loess Preds) method
-#' @param tr_codon_read_count_list A list generated by \code{\link{psite_to_codon_count}}
-#' containing observed read counts per codon per trancript per sample.
-#' @param codon_radius Number of codons on either side of each codon influencing the loess prediction for the middle codon. Default: 5.
-#' @param loess_method Determines whether the fitted surface should be computed exactly ("direct") or via interpolation from a kd tree ("interpolate"). Default: "interpolate".
-#' @param gini_moderation Logical argument. If set to TRUE, (bias_coefficient)^(gini_index) is used as correction factor.
-#' If set to FALSE, bias_coefficient is used as correction factor. Default: FALSE.
-#' @details This function is the heart of CELP method for stalling bias detection and correction.
-#' It starts with running a loess curve on per-codon read counts along the transcript to borrow information
-#' from neighboring codons mitigating the uncertainty of p-site offset assignment and experimental stochasticity.
-#' Loess span parameter is calculated from the user-defined codon radius and CDS length.
-#' Then, a bias coefficient is calculated for each codon by integrating information on the excess of loess-predicted
-#' read counts at that codon comapred to the transcript's background across all samples. Finally, loess predicted counts
-#' read counts are divided by bias coefficients to calculate bias-corrected counts.
-#' The "direct" fitting method takes longer to complete but does not run into kd-tree-related memory issues.
-#' Gini index for each transcript is calculated from the bias coefficients of all of its codons.
-#' Gini moderation ensures that the strength of bias correction is proportional to the original level of heterogenity in read distribution along the transcript.
-#' @return A list composed of two lists: 1. bias coefficients 2. bias-corrected read counts
-#' The bias coefficient list has the following structure: list$<transcript.ID> data.frame: [1] codon_number [2] codon_type [3] aa_type [4] bias_coefficient.
-#' The bias-corrected read count list has the following structure: list$<sample.name>$<transcript.ID> data.frame:
-#' [1] codon_number [2] codon_type [3] aa_type [4] observed_count [5] bias_coefficient [6] corrected_count.
-#' Gini moderation ensures that the strength of correction is proportional to the original level of heterogenity in read distribution along the transcript.
-#' @examples
-#' tr_codon_bias_coeff_corrected_count_LMCN <- CELP_bias(tr_codon_read_count_LMCN)
-#' tr_codon_bias_coeff_corrected_count_LMCN_gini_moderated <- CELP_bias(tr_codon_read_count_LMCN, gini_moderation = TRUE)
-#' tr_codon_bias_coeff_corrected_count_LMCN_direct_fit <- CELP_bias(tr_codon_read_count_LMCN, loess_method = "direct")
-#' @export
-CELP_bias <- function(tr_codon_read_count_list, codon_raduis = 5, loess_method = "interpolate", gini_moderation = FALSE){
-
-  tr_codon_read_count_loess_corrected <- tr_codon_read_count_list
-  bias_coefficients_list <- list()
-  sample_names_i <- names(tr_codon_read_count_loess_corrected)
-  tr_names_i <- names(tr_codon_read_count_loess_corrected[[1]])
-
-  # Run loess and compute loess predicted values
-  for (t in tr_names_i){
-    l_cds <- dim(tr_codon_read_count_loess_corrected[[1]][[t]])[1]
-    span_tr <- (2*codon_raduis+1)/l_cds
-    for (s in sample_names_i){
-      tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred <-
-        suppressWarnings(predict(loess(tr_codon_read_count_loess_corrected[[s]][[t]]$observed_count ~ tr_codon_read_count_loess_corrected[[s]][[t]]$codon_number, span = span_tr, se = FALSE, control = loess.control(surface = loess_method))))
-      tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred [tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred < 0 ] <- 0
-      tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred_by_nz_median <-
-        tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred / median(tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred[tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred>0])
-    }
-
-    # Calculate position-specific bias coefficients
-    bias_coefficients_list[[t]] <- data.frame(codon_number = tr_codon_read_count_loess_corrected[[1]][[t]]$codon_number,
-                                              codon_type = tr_codon_read_count_loess_corrected[[1]][[t]]$codon_type,
-                                              aa_type = tr_codon_read_count_loess_corrected[[1]][[t]]$aa_type)
-    for (s in sample_names_i){
-      bias_coefficients_list[[t]] <- data.frame(bias_coefficients_list[[t]], tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred_by_nz_median)
-    }
-    names(bias_coefficients_list[[t]]) <- c("codon_number", "codon_type", "aa_type", sample_names_i)
-    bias_coefficient <- apply(bias_coefficients_list[[t]][,-c(1:3)], 1, function(y) gm_mean(y))
-    bias_coefficient_gini <- DescTools::Gini(bias_coefficient)
-    bias_coefficients_list[[t]] <- data.frame(bias_coefficients_list[[t]][,c(1:3)], bias_coefficient)
-
-    # calculate bias-corrected read counts
-    for (s in sample_names_i){
-      tr_codon_read_count_loess_corrected[[s]][[t]]$bias_coefficient <- bias_coefficients_list[[t]]$bias_coefficient
-      if (gini_moderation == TRUE){
-        correction_power <- bias_coefficient_gini
-      } else{
-        correction_power <- 1
-      }
-      tr_codon_read_count_loess_corrected[[s]][[t]]$corrected_count <-
-        tr_codon_read_count_loess_corrected[[s]][[t]]$loess_pred / (tr_codon_read_count_loess_corrected[[s]][[t]]$bias_coefficient)^correction_power
-      tr_codon_read_count_loess_corrected[[s]][[t]] <- subset(tr_codon_read_count_loess_corrected[[s]][[t]], select = -c(loess_pred, loess_pred_by_nz_median))
-    }
-  }
-
-  output <- list(bias_coefficients_list = bias_coefficients_list, tr_codon_read_count_loess_corrected = tr_codon_read_count_loess_corrected)
-  return(output)
-}
-
-
-
-#' @title codon2transcript
-#' @description Function to sum up codon counts per transcript.
-#' @param tr_codon_read_count_loess_corrected_list A list of codon level read counts for all samples and transcripts.
-#' It is the second element of a tr_codon_bias_coeff_corrected_count object produced by \code{\link{CELP_bias}}.
-#' It has the following structure:
-#' list$<sample.name>$<transcript.ID> data.frame:
-#' [1] codon_number [2] codon_type [3] aa_type [4] observed_count [5] bias_coefficient [6] corrected_count.
-#' @param count_type Options: "observed_count", "corrected_count".
-#' @details Stalling bias correction is performed at the codon level but differential translational efficiency analysis
-#' is ususally performed at transcript level. This function sums up codon level counts (observed or corrected) for each transcript.
-#' @examples
-#' rpf_observed_sum_LMCN <- codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "observed_count")
-#' rpf_corrected_sum_LMCN <- codon2transcript(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "corrected_count")
-#' @return A data frame where the first column is transcript IDs and the remaining columns contain per transcript read counts for all samples.
-#' @export
-codon2transcript <- function(tr_codon_read_count_loess_corrected_list, count_type) {
-  count_sum <- as.data.frame(sapply(tr_codon_read_count_loess_corrected_list, function(x) sapply(x, function(y) sum(y[count_type]))))
-
-  count_sum$transcript <- rownames(count_sum)
-  w <- dim(count_sum)[2]
-  count_sum <- count_sum[,c(w,1:(w-1))]
-  count_sum <- count_sum[order(count_sum$transcript),]
-  rownames(count_sum) <- NULL
-
-  total_counts <- as.data.frame(rowSums(count_sum[,-1]) )
-  rownames(total_counts) <- count_sum$transcript
-
-  empty_transcripts <- c()
-
-  for (transcript in count_sum$transcript){
-    if (total_counts[transcript,] == 0) {
-      empty_transcripts <- c(empty_transcripts, transcript)
-    }
-  }
-
-  if (length(empty_transcripts) > 0) {
-    warning(paste('There are',length(empty_transcripts), 'transcripts that have 0 counts across all samples.',
-    'Use Ribolog::min_count_filter to remove them before translational efficiency testing.'))
-  }
-
-  return(count_sum)
-}
-
-
-
-#' @title plot_mirrors_CELP
-#' @description Functions to visualize bias coefficient for the specified transcript in one sample.
-#' @param x Data frame containing CELP output for a trancript in one sample
-#' @param ylim_low_i Lower bound on y axis
-#' @param ylim_up_i Upper bound on y axis
-#' @param xlim_low_i Lower bound on x axis
-#' @param xlim_up_i Upper bound on x axis
-#' @param sample Name of the sample to be plotted
-plot_mirrors_CELP <- function(x, ylim_low_i, ylim_up_i, xlim_low_i = NULL, xlim_up_i = NULL, sample){
-  plot(x$codon_number, y = x$observed_count, type="h",
-       xlab = "Codon number", ylab = "Read counts", main = sample,
-       ylim = c(ylim_low_i, ylim_up_i), xlim = c(xlim_low_i, xlim_up_i))
-  lines(x$bias_coefficient, col = "red")
-  lines((-1)*(x$corrected_count), col = "darkorchid1", type = "h")
-}
-
-
-
-#' @title visualize_CELP
-#' @description Function to visualize translational stalling (CELP bias) overlaid on observed and corrected read counts.
-#' @param tr_codon_read_count_loess_corrected_list A list of codon level read counts for all samples and transcripts.
-#' It is the second element of a tr_codon_bias_coeff_corrected_count object produced by \code{\link{CELP_bias}}.
-#' It has the following structure:
-#' list$<sample.name>$<transcript.ID> data.frame:
-#' [1] codon_number [2] codon_type [3] aa_type [4] observed_count [5] bias_coefficient [8] corrected_count.
-#' @param transcript Name of the transcript to be plotted
-#' @param panel_rows Number of rows in the case of plotting multiple samples on one page. Default: 1.
-#' @param panel_cols Number of columns in the case of plotting multiple samples on one page. Default: 1.
-#' @param from_codon Plot starts from this codon. Use this and to_codon to zoom in on particular regions of the transcript. Default: NULL (plot starts at the start codon).
-#' @param to_codon Plot ends with this codon. Use this and from_codon to zoom in on particular regions of the transcript. Default: NULL (plot stops at the stop codon).
-#' @param outfile Path and name of the output pdf file. If it is not provided, plots will be printed to standard output. Default: NULL.
-#' @details This function plots the CELP bias coefficient as a curve overlaid on barplots of observed read counts upward
-#' (positive y) and corrected read counts downward (in the nominal negative y range). This allows visual inspection of the
-#' prominent bias positions and a comparison of read count heterogeneity along the transcript before and after
-#' CELP bias correction.
-#' @examples
-#' visualize_CELP(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "ENST00000000233", "<file.path>/ENST00000000233.CELP.bias.plots.pdf")
-#' visualize_CELP(tr_codon_bias_coeff_loess_corrected_count_LMCN$tr_codon_read_count_loess_corrected, "ENST00000000233", panel_rows = 2, panel_cols = 4, "<file.path>/ENST00000000233.CELP.bias.all.in.one.page.plots.pdf")
-#' @export
-visualize_CELP <- function(tr_codon_read_count_loess_corrected_list, transcript, panel_rows = 1, panel_cols = 1, from_codon = NULL, to_codon = NULL, outfile=NULL){
-  x_tr <- lapply(tr_codon_read_count_loess_corrected_list, function(y) y[[transcript]])
-  ylim_up <- max(unlist(lapply(x_tr, function(y) max(y$observed_count))))
-  ylim_low <- (-1) * max(unlist(lapply(x_tr, function(y) max(y$corrected_count))))
-
-  if (is.null(outfile)){
-    par(mfrow = c(panel_rows, panel_cols))
-  } else {
-    pdf(outfile, height = 10, width = 20)
-  }
-
-  for (s in names(x_tr)) {
-    plot_mirrors_CELP(x_tr[[s]], ylim_low_i = ylim_low, ylim_up_i = ylim_up, xlim_low_i = from_codon, xlim_up_i = to_codon, s)
-  }
-
-  if (!is.null(outfile)) {
-    dev.off()
-    sprintf("PDF (%s) created and saved", outfile)
-  }
 }

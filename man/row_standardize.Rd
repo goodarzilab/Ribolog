@@ -24,5 +24,6 @@ Function to standardize a selected block of a data frame row-wise.
 Row mean is subtracted from each element in the row and the result is divided by row standard deviation.
 }
 \examples{
-te_LMCN.v2.stnd <- row_standardize(te_LMCN.v2, columns = c(2:9))
+te.v2 <- Ribolog::create_te(rr.v2_dummy, idcolumns = 1, rnacolumns = c(2:9), rpfcolumns = c(10:17))
+te.v2.stnd <- Ribolog::row_standardize(te.v2, columns = c(2:9))
 }

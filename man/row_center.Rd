@@ -21,5 +21,6 @@ the rest is intact.
 Function to center a selected block of a data frame on its row means.
 }
 \examples{
-te_LMCN.v2.cent <- row_center(te_LMCN.v2, columns = c(2:9))
+te.v2 <- Ribolog::create_te(rr.v2_dummy, idcolumns = 1, rnacolumns = c(2:9), rpfcolumns = c(10:17))
+te.v2.cent <- Ribolog::row_center(te.v2, columns = c(2:9))
 }

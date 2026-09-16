@@ -1,12 +1,19 @@
 Package: Ribolog
 Title: Logistic-regression-based analysis of ribosome profiling data
-Date: 2020-12-09
-Version: 0.0.0.9000
-Authors@R:
+Date: 2026-12-09
+Version: 0.99.0
+Authors@R: c(
     person(given = "Hosseinali",
            family = "Asgharian",
+           role = c("aut"),
+           email = "hosseinali.asgharian@ucsf.edu",
+           comment = c(ORCID = "0000-0001-7085-5045")),
+    person(given = "Sohit",
+           family = "Miglani",
            role = c("aut", "cre"),
-           email = "hosseinali.asgharian@ucsf.edu")
+           email = "sohitmiglani@gmail.com",
+           comment = c(ORCID = "0000-0002-8075-320X"))
+    )
 Description: Ribolog offers tools to perform a variety of analyses on ribosome profiling data.
     Module 1: CELP (Consistent Excess of Loess Preds) identifies positions of translational pause (stalling)
     and corrects RPF counts to eliminate the impact of stalling bias. The output of CELP can be used to model the
@@ -20,28 +27,27 @@ Description: Ribolog offers tools to perform a variety of analyses on ribosome p
     Although better results are always obtained with sufficient replicates, Ribolog is able
     to peform the TER test with only one replicate per sample. The TER test is not restricted to pairwise comparisons;
     any number of samples described by several attributes (covariates) can be compared in a single model.
-    The Ribolog workflow is described in great detail in the package vignettes.
-    Ribolog is still a work in progress. Other modules are being prepared and will be released in near future.
+    The Ribolog workflow is described in great detail in the notebook "Ribolog_Basic_Tutorial.ipynb".
 URL: https://github.com/goodarzilab/Ribolog
 BugReports: https://github.com/goodarzilab/Ribolog/issues
-License: MIT
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 6.1.1
+LazyDataCompression: xz
 Depends:
     R (>= 3.5.0)
 Imports:
     GenomicAlignments,
+    GenomicFeatures,
+    txdbmaker,
+    GenomicRanges,
+    Biostrings,
     qvalue,
     EnhancedVolcano,
     data.table,
     ggplot2,
     ggrepel,
     dplyr,
-    robustbase,
-    nortest,
-    matrixStats,
-    sm,
     corrplot,
     DescTools,
     seqinr,
@@ -49,7 +55,20 @@ Imports:
     gdata,
     nlme,
     fitdistrplus,
-    nnet
+    nnet,
+    tibble,
+    Hmisc,
+    tidyr,
+    gridExtra,
+    graphics,
+    stats,
+    utils,
+    BiocManager
 Suggests:
     knitr,
     rmarkdown
+VignetteBuilder: knitr
+biocViews: Software, RiboSeq, RNASeq, Sequencing, Preprocessing, Normalization,
+    QualityControl, PrincipalComponent, DifferentialExpression, GeneExpression,
+    Regression, Coverage
+Config/roxygen2/version: 8.1.0

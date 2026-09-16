@@ -12,9 +12,6 @@ vignette: >
 ```{r setup, include = FALSE}
 library(knitr)
 opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
-opts_chunk$set(root.dir = "C:/Science/Projects/Ribosome profiling/Ribolog")
-setwd("C:/Science/Projects/Ribosome profiling/Ribolog")
-
 ```
 
 This module is the heart of the **Ribolog** package as it contains the differential translational efficiency significance test by the `logit_seq` function. 

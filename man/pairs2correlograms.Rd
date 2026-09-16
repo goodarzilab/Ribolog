@@ -24,5 +24,9 @@ such as (sample A: reps A1 and A2 + sample B: reps B1 and B2), correlation coeff
 the minimum advisable number of replicates to achieve reproducibility.
 }
 \examples{
-rr_LMCN.v2.correlograms <- pairs2correlograms(rr_LMCN.v2.pairwise)
+# Subset to a handful of transcripts so the pairwise fits run quickly.
+rr.v2_dummy.split <- Ribolog::partition_to_uniques(rr.v2_dummy[1:200, -1], Ribolog::sample_attributes_dummy, "replicate_name")
+rr.v2_dummy.pairwise <- Ribolog::TER_all_pairs(rr.v2_dummy.split, Ribolog::sample_attributes_dummy,
+                                          "read_type", "replicate_name", "cell_line", adj_method = "none")
+rr.v2_dummy.correlograms <- pairs2correlograms(rr.v2_dummy.pairwise)
 }

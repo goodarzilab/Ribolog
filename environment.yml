@@ -4,7 +4,7 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python=3.8
+  - python=3.12
   - bioconductor-GenomicAlignments
   - bioconductor-qvalue
   - bioconductor-EnhancedVolcano
@@ -27,3 +27,4 @@ dependencies:
   - r-gdata
   - r-nlme
   - r-fitdistrplus
+  - r-hmisc

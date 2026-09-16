@@ -1,29 +1,22 @@
-#' @import data.table
-#' @import Biostrings
+#' @importFrom data.table data.table setnames setkey setcolorder setorder tstrsplit CJ .N .SD .EACHI :=
 #' @import ggplot2
 #' @import ggrepel
-#' @import dplyr
-#' @import robustbase
-#' @import qvalue
-#' @import nortest
-#' @import matrixStats
-#' @import sm
+#' @importFrom dplyr %>% count rename filter_all all_vars
 #' @import corrplot
-#' @import DescTools
-#' @import GenomicAlignments
-#' @import rlists
-#' @import gdata
-#' @import nlme
+#' @import rlist
 #' @import EnhancedVolcano
 #' @import fitdistrplus
 #' @import nnet
+#' @import tidyr
 
 
 
 #' @title get_tr_regions
 #' @description Function to count the number of reads mapping to each of the 3 regions per transcript per sample.
 #' @param reads_psite_list A reads_psite_list object produced by \code{\link{psite_info_rW}}
-#' @return A dataframe containing the number of reads mapping to each region, for each transcript
+#' @return A dataframe containing the number of reads mapping to each region, for each transcript, with a
+#' \code{sample_name} column identifying each sample - named to match the \code{sample_name} convention
+#' used elsewhere (e.g. a sample attributes/design table), so it can be used directly as a \code{sample_ID}.
 #' @examples
 #' tr_regions_df <- get_tr_regions(reads_psite_list)
 #' @export
@@ -31,7 +24,7 @@
 get_tr_regions <- function(reads_psite_list){
   rpl <- lapply(reads_psite_list, function (x) dplyr::select(x, transcript, psite_region))
   rpl.2 <- lapply( rpl , function(x) x %>% count(transcript, psite_region)  )
-  rp.df <- data.table::rbindlist(rpl.2, idcol="sample")
+  rp.df <- data.table::rbindlist(rpl.2, idcol="sample_name")
   rp.df$psite_region <- relevel(as.factor(rp.df$psite_region), ref = "cds")
   names(rp.df)[4] <- "count"
   return(rp.df)
@@ -82,11 +75,13 @@ glm_deviance_test_p <- function(x){
 #' @description Normalise the data with pre-provided normalisation ratios
 #' @param edf Dataframe output of get_tr_regions()
 #' @param num_samples Number of samples in the dataframe
+#' @param normalization_factors A named or ordered vector of per-sample normalization factors (e.g. size factors),
+#' one per sample, in the same sample order as the columns produced when \code{edf} is pivoted wide.
 #' @return data frame of the normalised transcript counts for each region
 #' @export
 
 normalize_with_ratios <- function(edf, num_samples, normalization_factors){
-  edf <- edf %>% pivot_wider(names_from = sample, values_from = count)
+  edf <- edf %>% pivot_wider(names_from = sample_name, values_from = count)
   edf[is.na(edf)] = 0
   data_columns <- c(3:(2+num_samples))
 
@@ -96,7 +91,7 @@ normalize_with_ratios <- function(edf, num_samples, normalization_factors){
   edf[, data_columns] <- normalized_edf
   names(edf) <- id_names
 
-  edf <- edf %>%  pivot_longer(all_of(data_columns), names_to = "sample", values_to = "count")
+  edf <- edf %>%  pivot_longer(all_of(data_columns), names_to = "sample_name", values_to = "count")
   return(edf)
 }
 
@@ -106,15 +101,27 @@ normalize_with_ratios <- function(edf, num_samples, normalization_factors){
 #' @description Function to remove transcripts with low level counts across all three regions
 #' @param edf Dataframe output of get_tr_regions()
 #' @param mincount Minimum average of counts across all three region types
+#' @param method Filtering method passed to \code{\link{min_count_filter}}. Default: "average".
 #' @return data frame of the filtered transcript counts for each region
+#' @details
+#' A transcript with zero observed reads in a given region across every sample has no row for that
+#' (transcript, psite_region) combination in \code{edf} at all (see \code{\link{get_tr_regions}}), so
+#' pivoting to wide format introduces \code{NA} there rather than 0; these are filled with 0 before
+#' filtering, since a missing combination genuinely means zero counts, not an unknown value.
 #' @export
 
 replace_low_count_transcripts <- function(edf, mincount = 2, method='average'){
 
     edf <- edf %>% pivot_wider(names_from = psite_region, values_from = count)
+    # A transcript with zero observed reads in a region across every sample has no row for that
+    # (transcript, psite_region) combination at all, so pivot_wider introduces NA here rather than 0.
+    # That NA would otherwise flow into min_count_filter's row means/sums and, since indexing a data
+    # frame with an NA condition returns an all-NA row (not an excluded one), silently corrupt those
+    # transcripts into garbage NA rows instead of correctly filtering them out.
+    edf[is.na(edf)] <- 0
     initial_num <- length(rownames(edf))
 
-    edf <- Ribolog::min_count_filter(edf, 2, c(3:5), method="average")
+    edf <- Ribolog::min_count_filter(edf, mincount, c(3:5), method=method)
     final_num <- length(rownames(edf))
 
     print(paste('Number of records filtered out:', initial_num - final_num))
@@ -124,9 +131,36 @@ replace_low_count_transcripts <- function(edf, mincount = 2, method='average'){
 
 
 
+#' @title normalize_and_clean
+#' @description Normalize per-region transcript read counts using the median-of-ratios method
+#' and remove transcripts with low counts across regions. Combines \code{\link{normalize_median_of_ratios}}
+#' and \code{\link{replace_low_count_transcripts}} into a single step, so per-sample normalization
+#' factors do not need to be supplied or computed by hand.
+#' @param edf Dataframe output of get_tr_regions()
+#' @param mincount Minimum average of counts across all three region types. Passed to \code{\link{replace_low_count_transcripts}}.
+#' @param method Filtering method passed to \code{\link{replace_low_count_transcripts}}. Default: "average".
+#' @return data frame of the normalised and filtered transcript counts for each region
+#' @examples
+#' tr_regions_df_pivot_norm_clean <- normalize_and_clean(tr_regions_df)
+#' @export
+
+normalize_and_clean <- function(edf, mincount = 2, method = 'average'){
+  edf_wide <- edf %>% pivot_wider(names_from = sample_name, values_from = count)
+  edf_wide[is.na(edf_wide)] <- 0
+  data_columns <- c(3:ncol(edf_wide))
+
+  edf_norm <- Ribolog::normalize_median_of_ratios(edf_wide, data_columns)
+  edf_norm <- edf_norm %>% pivot_longer(all_of(data_columns), names_to = "sample_name", values_to = "count")
+
+  edf_clean <- Ribolog::replace_low_count_transcripts(edf_norm, mincount = mincount, method = method)
+  return(edf_clean)
+}
+
+
+
 #' @title remove_low_levels
 #' @description Function to remove transcripts with not enough data to run a regression
-#' @param edf Dataframe output of normalised and filtered counts for transcript and psite region
+#' @param xd Dataframe output of normalised and filtered counts for transcript and psite region, merged with the design matrix
 #' @param model Intended model to be used in the regression
 #' @return data frame of the filtered transcript counts for each region
 #' @export
@@ -158,16 +192,23 @@ remove_low_levels <- function(xd, model){
 #' @param model Regression model describing the dependence of region counts on sample attribute(s).
 #' @param design (optional) Design matrix. A matrix describing sample attributes which can be used as predictors in the regression model.
 #' @param sample_ID (optional) A key variable connecting the counts dataset (\code{data}) and the design matrix.
-#' @param adj_method P-value adjustment method.
+#' @param adj_method P-value adjustment method. Default: "none".
 #' Options: "qvalue", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".
 #' "qvalue" calls the \emph{qvalue} package. Other methods are from base R.
 #' @return
 #' Deviance test p-values (one per transcript).
+#' @examples
+#' fit.o <- tr_region_logit_dev(tr_regions_df_pivot_norm,
+#'                               psite_region ~ lung_metastasis,
+#'                               sample_attributes,
+#'                               "sample_name")
 #' @export
 
-tr_region_logit_dev <- function(data, model, design = NULL, sample_ID = NULL, adj_method) {
+tr_region_logit_dev <- function(data, model, design = NULL, sample_ID = NULL, adj_method = 'none') {
   data <- Ribolog::remove_0_1_region_transcripts(data)
   xd <- merge(data, design, by = sample_ID)
+  xd <- droplevels(xd)
+  xd <- Ribolog::remove_low_levels(xd, model)
   xd <- droplevels(xd)
 
   gfitx <- suppressWarnings(by(xd, xd$transcript, function(y) glm(as.formula(Reduce(paste,
@@ -181,6 +222,38 @@ tr_region_logit_dev <- function(data, model, design = NULL, sample_ID = NULL, ad
           dtest_gfitx.df <- Ribolog::adj_TER_p(dtest_gfitx.df, pcols = 2, adj_method = adj_method) }
 
   return(dtest_gfitx.df)
+}
+
+
+
+#' Rename tr_region_multi_logit's per-term output columns to a readable convention.
+#' Not exported; used only internally by \code{\link{tr_region_multi_logit}}.
+#' Maps e.g. "b..Intercept." -> "logFC_intercept", "p.lung_metastasisY" -> "pval_lung_metastasisY",
+#' and "<adj_method>_p..Intercept." -> "pval_corrected_intercept", regardless of which term or
+#' adjustment method was used.
+#' @param nm Character vector of raw column names to translate.
+#' @param adj_method P-value adjustment method used upstream (e.g. "fdr", "none"); determines the
+#' \code{"<adj_method>_p."} prefix pattern to match.
+#' @noRd
+rename_multilogit_terms <- function(nm, adj_method){
+  clean_term <- function(term) gsub("^\\.Intercept\\.$", "intercept", term)
+  adj_pattern <- paste0("^", adj_method, "_p\\.")
+
+  vapply(nm, function(n){
+    if (grepl(adj_pattern, n)) {
+      paste0("pval_corrected_", clean_term(sub(adj_pattern, "", n)))
+    } else if (grepl("^b\\.", n)) {
+      paste0("logFC_", clean_term(sub("^b\\.", "", n)))
+    } else if (grepl("^se\\.", n)) {
+      paste0("se_", clean_term(sub("^se\\.", "", n)))
+    } else if (grepl("^z\\.", n)) {
+      paste0("zscore_", clean_term(sub("^z\\.", "", n)))
+    } else if (grepl("^p\\.", n)) {
+      paste0("pval_", clean_term(sub("^p\\.", "", n)))
+    } else {
+      n
+    }
+  }, character(1), USE.NAMES = FALSE)
 }
 
 
@@ -199,7 +272,16 @@ tr_region_logit_dev <- function(data, model, design = NULL, sample_ID = NULL, ad
 #' Options: "qvalue", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr", "none".
 #' "qvalue" calls the \emph{qvalue} package. Other methods are from base R.
 #' @return
-#' Multinomial test statistics for each transcript region
+#' Multinomial test statistics for each transcript region. For each model term (e.g. "intercept",
+#' "lung_metastasisY"), columns are named \code{logFC_<term>} (log fold change), \code{pval_<term>}
+#' (unadjusted p-value) and \code{pval_corrected_<term>} (multiple-testing-adjusted p-value). When
+#' \code{output = "long"}, \code{se_<term>} and \code{zscore_<term>} are also included.
+#' @examples
+#' multi_logit <- tr_region_multi_logit(data = tr_regions_df_pivot_norm_clean,
+#'                                       model = psite_region ~ lung_metastasis,
+#'                                       design = sample_attributes,
+#'                                       sample_ID = "sample_name",
+#'                                       output = "short", adj_method = "fdr")
 #' @export
 
 tr_region_multi_logit <- function(data, model, design, sample_ID, output = "short", adj_method = 'none'){
@@ -233,20 +315,29 @@ tr_region_multi_logit <- function(data, model, design, sample_ID, output = "shor
   names(sfitxp_df) <- paste0("p.", names(sfitxp_df))
 
   if (output == "short") {
-    sfitx_com <- data.frame(cbind(transcript = sfitxb_df[,1], sfitxb_df[,-1], sfitxp_df))
+    sfitx_com <- data.frame(sfitxb_df, sfitxp_df)
   } else if (output == "long") {
-    sfitx_com <- data.frame(cbind(transcript = sfitxb_df[,1], sfitxb_df[,-1], sfitxse_df, sfitxz_df, sfitxp_df))
+    sfitx_com <- data.frame(sfitxb_df, sfitxse_df, sfitxz_df, sfitxp_df)
+  }
+
+  # do.call(rbind.data.frame, <named list>) encodes each row's originating list name (the transcript ID)
+  # into a "<transcript>.<outcome level>" row name (e.g. "ENST00000000233.3utr"); recover the transcript
+  # ID from that suffix. A previous version of this function instead took the first coefficient column's
+  # *value* (the (Intercept) beta, a number) and mislabeled it "transcript" - which silently discarded the
+  # intercept term from the output, and crashed with "duplicate 'row.names' are not allowed" whenever two
+  # transcripts happened to share the same intercept coefficient.
+  strip_region_suffix <- function(df, suffix) {
+    rownames(df) <- sub(paste0("\\.", suffix, "$"), "", rownames(df))
+    df
   }
 
   output_df <- {}
 
-  subset <-  sfitx_com[grepl('3utr', rownames(sfitx_com), fixed=TRUE),]
-  rownames(subset) <- subset$transcript
-  subset$transcript <- NULL
+  subset <- sfitx_com[grepl('3utr', rownames(sfitx_com), fixed=TRUE), , drop = FALSE]
+  subset <- strip_region_suffix(subset, "3utr")
 
-  subset_5 <-  sfitx_com[grepl('5utr', rownames(sfitx_com), fixed=TRUE),]
-  rownames(subset_5) <- subset_5$transcript
-  subset_5$transcript <- NULL
+  subset_5 <- sfitx_com[grepl('5utr', rownames(sfitx_com), fixed=TRUE), , drop = FALSE]
+  subset_5 <- strip_region_suffix(subset_5, "5utr")
 
 
   if (output == "short"){
@@ -256,6 +347,9 @@ tr_region_multi_logit <- function(data, model, design, sample_ID, output = "shor
     subset <- Ribolog::adj_TER_p(subset, pcols = c(7:8), adj_method = adj_method)
     subset_5 <- Ribolog::adj_TER_p(subset_5, pcols = c(7:8), adj_method = adj_method)
   }
+
+  names(subset) <- rename_multilogit_terms(names(subset), adj_method)
+  names(subset_5) <- rename_multilogit_terms(names(subset_5), adj_method)
 
   output_df[['3utr']] <- subset
   output_df[['5utr']] <- subset_5
@@ -275,9 +369,19 @@ tr_region_multi_logit <- function(data, model, design, sample_ID, output = "shor
 #' @param FCcutoff A cutoff value for the log fold change on the volcano plot
 #' @param xlim A range for the log fold change on the volcano plot
 #' @param ylim A range for the p-values on the volcano plot
-#' @param gene_mapper A dataframe containing transcripts and gene names
+#' @param gene_mapper A dataframe containing transcripts and gene names. Since multiple transcripts
+#' (isoforms) commonly share the same gene, mapped labels are disambiguated with \code{\link{make.unique}}
+#' (e.g. "ABCF2", "ABCF2.1") to guarantee valid, unique row names; transcripts absent from \code{gene_mapper}
+#' keep their original transcript ID as a fallback label.
 #' @return
 #' Volcano plot figure
+#' @examples
+#' visualize_orf_usage(multi_logit,
+#'                      log_fold_change = 'logFC_lung_metastasisY',
+#'                      p_val_column = 'pval_corrected_lung_metastasisY',
+#'                      region = '3utr',
+#'                      ylim = c(0, 20),
+#'                      gene_mapper = mapper)
 #' @export
 
 visualize_orf_usage  <- function(subset, log_fold_change, p_val_column, region,
@@ -290,14 +394,22 @@ visualize_orf_usage  <- function(subset, log_fold_change, p_val_column, region,
         if (!('transcript' %in% colnames(gene_mapper) && 'gene_name' %in% colnames(gene_mapper))) {
             stop('The gene mapper specified does not have a transcript or a gene_name column.')}
 
-        rownames(gene_mapper) <- gene_mapper$transcript
-        rownames(subset) <- gene_mapper[rownames(subset),]$gene_name
+        map_vec <- setNames(as.character(gene_mapper$gene_name), as.character(gene_mapper$transcript))
+        mapped_labels <- unname(map_vec[rownames(subset)])
+        unmapped <- is.na(mapped_labels)
+        mapped_labels[unmapped] <- rownames(subset)[unmapped]
+        # Multiple transcripts (isoforms) commonly share the same gene, so gene names alone are not
+        # guaranteed unique here; disambiguate (e.g. "ABCF2", "ABCF2.1") so they remain valid row names.
+        rownames(subset) <- make.unique(mapped_labels)
     }
 
-    EnhancedVolcano::EnhancedVolcano(subset, lab = rownames(subset),
+    # EnhancedVolcano emits a few warnings that are expected and cosmetic (handling of exact-zero
+    # p-values, and its own internal use of a deprecated ggplot2 `size` argument); suppressed here,
+    # same as Ribolog::volcano_plot.
+    suppressWarnings(EnhancedVolcano::EnhancedVolcano(subset, lab = rownames(subset),
                                      x=log_fold_change, xlab= 'Ln Fold Change',
                                      y=p_val_column, ylab= '- Log10 P_val',
                                      title=paste0('Volcano plot for usage of ', region),
                                      pCutoff=pCutoff, FCcutoff=FCcutoff,
-                                     xlim=xlim, ylim=ylim)
+                                     xlim=xlim, ylim=ylim))
 }

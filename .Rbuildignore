@@ -1,3 +1,14 @@
 ^Ribolog\.Rproj$
 ^\.Rproj\.user$
 ^data-raw$
+(^|/)\.ipynb_checkpoints$
+^Ribolog_Basic_Tutorial\.ipynb$
+^benchmarks$
+^environment\.yml$
+^final_counts\.RDS$
+^preprocess_data\.md$
+^reads_list\.rds$
+^reads_psite_list\.rds$
+^test$
+^tr_regions_df\.csv$
+^Biomart_cDNA_fasta_to_rW_annotation_and_reheadered_longest_CDS_cDNA_fasta_v2\.py$

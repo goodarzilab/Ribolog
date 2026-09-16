@@ -11,6 +11,9 @@ add_sd_z(x)
 The first column contains a measure of effect size e.g. regression coefficient. The second column contains p-values. The matrix
 follows a [, beta1 p1 beta2 p2 ...] format.}
 }
+\value{
+An augmented matrix where SD(beta) and z columns are added between beta and p for each predictor (and intercept, if applicable).
+}
 \description{
 Function to add standard deviation and z statistic to test results
 }
@@ -24,6 +27,8 @@ If p-value was calculated from a distribution other than standard normal, the \c
 The user must add the SD and z columns to the output manually using apprporiate operations.
 }
 \examples{
-fit1_LMCN_short <- fit1_LMCN[, c(TRUE, FALSE, FALSE, TRUE)]
-fit1_LMCN_restored <- add_sd_z(fit1_LMCN_short)
+fit1 <- Ribolog::logit_seq(rr.v2_dummy[, -1], Ribolog::sample_attributes_dummy, read_type ~ lung_metastasis,
+                            as.vector(rr.v2_dummy$transcript), adj_method = 'none')
+fit1_short <- fit1[, c(TRUE, FALSE, FALSE, TRUE)]
+fit1_restored <- add_sd_z(fit1_short)
 }
