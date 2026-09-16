@@ -5,7 +5,7 @@ A suite of regression-based tools for Ribosome profiling data analysis
 
 ## Installing Ribolog
 
-### Install directory in R
+### Install directly in R
 
 ```R
 install.packages('BiocManager')
