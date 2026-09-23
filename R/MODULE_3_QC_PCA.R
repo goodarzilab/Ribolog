@@ -114,7 +114,21 @@ row_standardize <- function(x, columns){
 #' @param outfile The path and name of the output pdf file containing the PCA plots (optional). Default: NULL.
 #' @param ID A vector containing group IDs to color-code the samples on the PCA plot
 #' (must correspond to the order of samples in \code{x}) (optional). Default: NULL.
-#' @details A summary of the PC analysis is printed out to standard output.
+#' @param title Plot title. Default: "PCA of samples".
+#' @param subtitle Plot subtitle. Default: \code{NULL}.
+#' @param legend_title Legend title used for the \code{ID} colour grouping. Default: "ID".
+#' @param title_size Font size for the (bold) title. Default: 22.
+#' @param axis_title_size Font size for the (bold) axis titles. Default: 18.
+#' @param axis_text_size Font size for the (bold) axis tick labels. Default: 14.
+#' @param point_size Size of the sample points. Default: 3.
+#' @param point_color Colour of the sample points. Only used when \code{ID} is \code{NULL} (a single,
+#' uncoloured series); when \code{ID} is given, points are coloured by group using ggplot2's default
+#' discrete palette instead. Default: "#1F3864".
+#' @param label_size Font size for the sample-name labels placed next to each point. Default: 4.
+#' @param legend_position Where to place the legend (only shown when \code{ID} is given). Default: "top".
+#' @param legend_text_size Font size for the (bold) legend title/labels. Default: 14.
+#' @details A summary of the PC analysis is printed out to standard output. Percent variance explained,
+#' shown in each axis label, is rounded to two decimal places.
 #' If outfile is not specified, PCA plots will be printed to standard output i.e. the plots panel in Rstudio.
 #' @examples
 #' te.v2 <- Ribolog::create_te(rr.v2_dummy, idcolumns = 1, rnacolumns = c(2:9), rpfcolumns = c(10:17))
@@ -122,46 +136,65 @@ row_standardize <- function(x, columns){
 #' # The first column of input data (transcript ID) had to be removed to create a full-numeric input dataset.
 #' pca_qc(te.v2.stnd[, -1], n = 2, ID = Ribolog::sample_attributes_dummy$cell_line[c(1:8)])
 #' @export
-pca_qc <- function(x, n, outfile = NULL, ID = NULL){
+pca_qc <- function(x, n, outfile = NULL, ID = NULL,
+                    title = "PCA of samples", subtitle = NULL, legend_title = "ID",
+                    title_size = 22, axis_title_size = 18, axis_text_size = 14,
+                    point_size = 3, point_color = "#1F3864", label_size = 4,
+                    legend_position = "top", legend_text_size = 14){
   x.pca <- prcomp(x[!rowSums(is.na(x)),])
   print(summary(x.pca))
   rotation.x.pca <- data.frame(x.pca$rotation)
   var.x.pca <- summary(x.pca)$importance[2,]
 
-  if (is.null(outfile)){
-    for (i in 1:dim(combn(n,2))[2]){
-      x_i <- rotation.x.pca[,combn(n,2)[1,i]]
-      y_i <- rotation.x.pca[,combn(n,2)[2,i]]
-      margin_x <- (max(x_i) - min(x_i)) * 0.2
-      margin_y <- (max(y_i) - min(y_i)) * 0.2
-      print(ggplot(rotation.x.pca, aes(x_i, y_i, color = ID)) +
-              geom_point(shape = 16) +
-              geom_label_repel(aes(label=colnames(x)))+
-              xlim(min(x_i)-margin_x, max(x_i)+margin_x)+
-              ylim(min(y_i)-margin_y,max(y_i)+margin_y)+
-              xlab(paste0(colnames(rotation.x.pca)[combn(n,2)[1,i]]," (", var.x.pca[combn(n,2)[1,i]]*100,"% of variance)"))+
-              ylab(paste0(colnames(rotation.x.pca)[combn(n,2)[2,i]]," (", var.x.pca[combn(n,2)[2,i]]*100,"% of variance)"))+
-              labs(title="PCA of samples"))
+  make_pca_panel <- function(pcs, i){
+    x_i <- rotation.x.pca[, pcs[1, i]]
+    y_i <- rotation.x.pca[, pcs[2, i]]
+    margin_x <- (max(x_i) - min(x_i)) * 0.2
+    margin_y <- (max(y_i) - min(y_i)) * 0.2
+
+    plot_df <- data.frame(x_i = x_i, y_i = y_i, sample = colnames(x))
+
+    p <- ggplot(plot_df, aes(x_i, y_i))
+    if (!is.null(ID)) {
+      plot_df$ID <- ID
+      p <- ggplot(plot_df, aes(x_i, y_i, color = ID)) +
+        geom_point(size = point_size, shape = 16)
+    } else {
+      p <- p + geom_point(size = point_size, shape = 16, colour = point_color)
     }
 
-  } else {
-    pdf(outfile)
-    for (i in 1:dim(combn(n,2))[2]){
-      x_i <- rotation.x.pca[,combn(n,2)[1,i]]
-      y_i <- rotation.x.pca[,combn(n,2)[2,i]]
-      margin_x <- (max(x_i) - min(x_i)) * 0.2
-      margin_y <- (max(y_i) - min(y_i)) * 0.2
-      print(ggplot(rotation.x.pca, aes(x_i, y_i, color = ID)) +
-              geom_point(shape = 16) +
-              geom_label_repel(aes(label=colnames(x)))+
-              xlim(min(x_i)-margin_x, max(x_i)+margin_x)+
-              ylim(min(y_i)-margin_y,max(y_i)+margin_y)+
-              xlab(paste0(colnames(rotation.x.pca)[combn(n,2)[1,i]]," (", var.x.pca[combn(n,2)[1,i]]*100,"% of variance)"))+
-              ylab(paste0(colnames(rotation.x.pca)[combn(n,2)[2,i]]," (", var.x.pca[combn(n,2)[2,i]]*100,"% of variance)"))+
-              labs(title="PCA of samples"))
-    }
-    dev.off()
+    p +
+      geom_label_repel(aes(label = sample), size = label_size) +
+      xlim(min(x_i)-margin_x, max(x_i)+margin_x) +
+      ylim(min(y_i)-margin_y, max(y_i)+margin_y) +
+      xlab(paste0(colnames(rotation.x.pca)[pcs[1, i]], " (", round(var.x.pca[pcs[1, i]] * 100, 2), "% of variance)")) +
+      ylab(paste0(colnames(rotation.x.pca)[pcs[2, i]], " (", round(var.x.pca[pcs[2, i]] * 100, 2), "% of variance)")) +
+      labs(title = title, subtitle = subtitle, color = if (!is.null(ID)) legend_title else NULL) +
+      theme_minimal(base_size = axis_title_size) +
+      theme(
+        plot.title = element_text(size = title_size, face = "bold", hjust = 0.5,
+                                   margin = margin(b = 4)),
+        plot.subtitle = element_text(size = title_size * 0.6, colour = "grey40", hjust = 0.5,
+                                      margin = margin(b = 12)),
+        plot.title.position = "plot",
+        axis.title = element_text(size = axis_title_size, face = "bold"),
+        axis.text = element_text(size = axis_text_size, colour = "grey20", face = "bold"),
+        axis.line = element_line(colour = "grey50"),
+        panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(colour = "grey92"),
+        legend.position = if (!is.null(ID)) legend_position else "none",
+        legend.title = element_text(size = legend_text_size, face = "bold"),
+        legend.text = element_text(size = legend_text_size, face = "bold"),
+        legend.key = element_blank()
+      )
   }
+
+  pcs <- combn(n, 2)
+  if (!is.null(outfile)) pdf(outfile)
+  for (i in seq_len(ncol(pcs))) {
+    print(make_pca_panel(pcs, i))
+  }
+  if (!is.null(outfile)) dev.off()
 }
 
 

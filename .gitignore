@@ -49,3 +49,6 @@ inst/doc
 *.RDS
 *.csv
 
+# Local cache/index data from the Tuva Desktop app (unrelated to this package)
+.entropy/
+

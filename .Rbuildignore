@@ -1,3 +1,5 @@
+^renv$
+^renv\.lock$
 ^Ribolog\.Rproj$
 ^\.Rproj\.user$
 ^data-raw$

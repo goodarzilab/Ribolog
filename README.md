@@ -27,32 +27,42 @@ R -e "BiocManager::install('Goodarzilab/Ribolog', dependencies = FALSE)"
 
 ## Module details
 
-## Module 1: CELP (Consistent Excess of Loess Preds)
-Identifies positions of translational pause (stalling)
-and corrects RPF counts to eliminate the impact of stalling bias. The output of CELP can be used to model the
-factors that influence translational dynamics.
+## Module 1: Pre-processing
+Converts aligned, sorted, and indexed BAM files into per-read P-site assignments: read-length distributions,
+P-site offset detection, and reading-frame/periodicity QC. Produces the `reads_psite_list` object used by
+later modules.
 
-## Module 2: PREP
-Normalizes and combines RNA and RPF datasets and shapes them into a format ready for quality control (QC) and translational
-efficiency ratio (TER) anlaysis.
+## Module 2: PREP and CELP
+Corrects RPF counts for codon-level stalling bias (CELP: Consistent Excess of Loess Preds) and analyzes
+ribosome dwell times per codon/amino acid, then normalizes and filters RNA/RPF read counts into the
+transcript-by-sample count matrices used by Modules 3-6.
 
 ## Module 3: QC
-Includes three powerful tools to quantify and visualize reproducibility among replicates and inform hypothesis generation with respect to biological effects:
-princiapl component analysis (PCA) of TEs, proportion of null features (non-differentially translated transcripts)
-and correlation of equivalent TER tests.
+Three tools for assessing replicate reproducibility and biological signal before testing: PCA of
+translational efficiency, the proportion of null (non-differentially-translated) features, and
+correlograms of equivalent replicate-vs-replicate TER tests.
 
 ## Module 4: TER
-Tests the size and significance of differential translation
-rates among biological samples. Although better results are always obtained with sufficient replicates, __Ribolog__ is able to peform the TER test with only one replicate per sample. The TER test is not restricted to pairwise comparisons; any number of samples described by a list of attributes (covariates) can be compared in a single model.
+Tests the size and significance of differential translational efficiency between biological samples via
+logistic regression. Although better results are always obtained with sufficient replicates, __Ribolog__
+is able to perform the TER test with only one replicate per sample. The TER test is not restricted to
+pairwise comparisons; any number of samples described by several attributes (covariates) can be compared
+in a single model.
 
-## Module 5: Empirical significance testing and Meta-analysis
-Offers tools for two important slightly advanced statistical tasks: 1) Empirical null hypothesis testing to reduce false positives in replicated datasets.
-2) Meta-analysis to integrate
-results of biologically related and statistically correlated experiments.
+## Module 5: Empirical Null Testing and Meta-analysis
+Two advanced statistical tools for TER testing: 1) empirical null hypothesis testing, which derives the
+null distribution directly from replicate-vs-replicate comparisons in your own data instead of assuming a
+theoretical one, reducing false positives from batch effects, mapping noise, or overdispersion. 2)
+meta-analysis, which combines correlated test results (e.g. from separate datasets, or rep-by-rep
+sub-tests) into a single consensus effect size and p-value.
+
+## Module 6: ORF Usage and Stop Codon Readthrough
+Tests differential usage of upstream ORFs and stop-codon readthrough by comparing the distribution of
+P-site reads across the 5'UTR, CDS, and 3'UTR regions of each transcript between biological samples.
 
 The Ribolog workflow is described in great detail in the package vignettes (RIBOLOG.pdf in the vignettes folder).
 
-![Logo-r](https://github.com/Goodarzilab/Ribolog/blob/master/vignettes/Ribolog_workflow.v5.png)
+![Ribolog workflow diagram](https://github.com/Goodarzilab/Ribolog/blob/master/vignettes/Ribolog_workflow.svg)
 
 Rendering the vignettes during installation requires bam files that are not uploaded onto this repository. The knitted .pdf file should be downloaded directly from the vignettes folder instead.
 

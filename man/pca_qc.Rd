@@ -4,7 +4,23 @@
 \alias{pca_qc}
 \title{pca_qc}
 \usage{
-pca_qc(x, n, outfile = NULL, ID = NULL)
+pca_qc(
+  x,
+  n,
+  outfile = NULL,
+  ID = NULL,
+  title = "PCA of samples",
+  subtitle = NULL,
+  legend_title = "ID",
+  title_size = 22,
+  axis_title_size = 18,
+  axis_text_size = 14,
+  point_size = 3,
+  point_color = "#1F3864",
+  label_size = 4,
+  legend_position = "top",
+  legend_text_size = 14
+)
 }
 \arguments{
 \item{x}{A numeric matrix containing RNA, RPF, TE or some other type of data.
@@ -18,12 +34,37 @@ respectively (but not as additional non-numeric columns or rows).}
 
 \item{ID}{A vector containing group IDs to color-code the samples on the PCA plot
 (must correspond to the order of samples in \code{x}) (optional). Default: NULL.}
+
+\item{title}{Plot title. Default: "PCA of samples".}
+
+\item{subtitle}{Plot subtitle. Default: \code{NULL}.}
+
+\item{legend_title}{Legend title used for the \code{ID} colour grouping. Default: "ID".}
+
+\item{title_size}{Font size for the (bold) title. Default: 22.}
+
+\item{axis_title_size}{Font size for the (bold) axis titles. Default: 18.}
+
+\item{axis_text_size}{Font size for the (bold) axis tick labels. Default: 14.}
+
+\item{point_size}{Size of the sample points. Default: 3.}
+
+\item{point_color}{Colour of the sample points. Only used when \code{ID} is \code{NULL} (a single,
+uncoloured series); when \code{ID} is given, points are coloured by group using ggplot2's default
+discrete palette instead. Default: "#1F3864".}
+
+\item{label_size}{Font size for the sample-name labels placed next to each point. Default: 4.}
+
+\item{legend_position}{Where to place the legend (only shown when \code{ID} is given). Default: "top".}
+
+\item{legend_text_size}{Font size for the (bold) legend title/labels. Default: 14.}
 }
 \description{
 Function to produce PCA output for data visualization and QC purposes.
 }
 \details{
-A summary of the PC analysis is printed out to standard output.
+A summary of the PC analysis is printed out to standard output. Percent variance explained,
+shown in each axis label, is rounded to two decimal places.
 If outfile is not specified, PCA plots will be printed to standard output i.e. the plots panel in Rstudio.
 }
 \examples{
