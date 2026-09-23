@@ -3,6 +3,8 @@
 # Ribolog
 A suite of regression-based tools for Ribosome profiling data analysis
 
+![Ribolog workflow diagram](https://github.com/Goodarzilab/Ribolog/blob/master/vignettes/Ribolog_workflow.png)
+
 ## Installing Ribolog
 
 ### Install directly in R
@@ -59,12 +61,6 @@ sub-tests) into a single consensus effect size and p-value.
 ## Module 6: ORF Usage and Stop Codon Readthrough
 Tests differential usage of upstream ORFs and stop-codon readthrough by comparing the distribution of
 P-site reads across the 5'UTR, CDS, and 3'UTR regions of each transcript between biological samples.
-
-The Ribolog workflow is described in great detail in the package vignettes (RIBOLOG.pdf in the vignettes folder).
-
-![Ribolog workflow diagram](https://github.com/Goodarzilab/Ribolog/blob/master/vignettes/Ribolog_workflow.svg)
-
-Rendering the vignettes during installation requires bam files that are not uploaded onto this repository. The knitted .pdf file should be downloaded directly from the vignettes folder instead.
 
 __Ribolog__ was developed by Hossein Asgharian and Sohit Miglani at UCSF supervised by Hani Goodarzi and Adam Olshen. More modules are being prepared and will be released in near future.
 
